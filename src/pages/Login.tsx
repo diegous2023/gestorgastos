@@ -103,10 +103,10 @@ const Login: React.FC = () => {
               />
             </div>
             <h1 className="font-display text-3xl font-bold gradient-text text-center">
-              Bienvenido
+              GESTOR DE GASTOS
             </h1>
-            <p className="text-muted-foreground mt-2 text-center">
-              Controla tu dinero o él te controla a ti
+            <p className="text-muted-foreground mt-2">
+              Ingresa tu email para comenzar
             </p>
           </div>
 
