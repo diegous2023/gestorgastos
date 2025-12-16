@@ -1,5 +1,10 @@
 import React from 'react';
 import logo from '@/assets/logo.jpg';
+import { useAuth } from '@/context/AuthContext';
+import NotificationBell from './NotificationBell';
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 interface HeaderProps {
   activeTab: string;
@@ -7,15 +12,22 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange }) => {
+  const { user, logout } = useAuth();
+  
   const tabs = [
     { id: 'principal', label: 'Principal' },
     { id: 'graficas', label: 'Gráficas' },
     { id: 'categorias', label: 'Categorías' },
   ];
 
+  const handleUpdateApp = () => {
+    window.location.reload();
+    toast({ title: "App actualizada", description: "La aplicación se ha actualizado correctamente" });
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full py-4 px-4 bg-background/80 backdrop-blur-xl border-b border-border">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <img 
@@ -23,9 +35,32 @@ const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange }) => {
               alt="Gestor de Gastos" 
               className="w-10 h-10 rounded-lg object-cover"
             />
-            <h1 className="font-display text-xl font-bold gradient-text">
-              Gestor de Gastos
-            </h1>
+            <div>
+              <h1 className="font-display text-xl font-bold gradient-text">
+                Gestor de Gastos
+              </h1>
+              {user && (
+                <p className="text-xs text-muted-foreground">
+                  Bienvenido, {user.name}
+                </p>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleUpdateApp}
+              className="hidden sm:flex items-center gap-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Actualizar App
+            </Button>
+            <NotificationBell />
+            <Button variant="ghost" size="sm" onClick={logout}>
+              Cerrar Sesión
+            </Button>
           </div>
         </div>
         
