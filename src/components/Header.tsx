@@ -40,13 +40,11 @@ const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange }) => {
             </div>
             <div>
               <h1 className="font-display text-xl font-bold gradient-text">
-                Gestor de Gastos
+                Bienvenido, {user?.name || 'Usuario'}
               </h1>
-              {user && (
-                <p className="text-xs text-muted-foreground">
-                  Bienvenido, {user.name}
-                </p>
-              )}
+              <p className="text-xs text-muted-foreground">
+                Controla tu dinero o él te controlará a ti 🚀
+              </p>
             </div>
           </div>
           
