@@ -1,13 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Expense, CategoryLimit, Currency, CategoryId } from '@/types/expense';
+import { Expense, CategoryLimit, CategoryId } from '@/types/expense';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './AuthContext';
+import { toast } from 'sonner';
 
 interface ExpenseContextType {
   expenses: Expense[];
   categoryLimits: CategoryLimit[];
-  addExpense: (expense: Omit<Expense, 'id'>) => void;
-  deleteExpense: (id: string) => void;
-  setCategoryLimit: (limit: CategoryLimit) => void;
-  removeCategoryLimit: (categoryId: CategoryId) => void;
+  isLoading: boolean;
+  addExpense: (expense: Omit<Expense, 'id'>) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
+  setCategoryLimit: (limit: CategoryLimit) => Promise<void>;
+  removeCategoryLimit: (categoryId: CategoryId) => Promise<void>;
   getTotalsByCategory: (categoryId: CategoryId) => { usd: number; eur: number };
   getTotals: () => { usd: number; eur: number };
   getMonthlyTotals: (year: number, month: number) => { usd: number; eur: number };
@@ -30,45 +34,197 @@ interface ExpenseProviderProps {
 }
 
 export const ExpenseProvider: React.FC<ExpenseProviderProps> = ({ children }) => {
-  const [expenses, setExpenses] = useState<Expense[]>(() => {
-    const saved = localStorage.getItem('expenses');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [categoryLimits, setCategoryLimits] = useState<CategoryLimit[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
 
-  const [categoryLimits, setCategoryLimits] = useState<CategoryLimit[]>(() => {
-    const saved = localStorage.getItem('categoryLimits');
-    return saved ? JSON.parse(saved) : [];
-  });
+  // Fetch expenses from database
+  const fetchExpenses = async () => {
+    if (!user?.email) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('user_email', user.email)
+        .order('date', { ascending: false });
 
+      if (error) throw error;
+
+      const mappedExpenses: Expense[] = (data || []).map(exp => ({
+        id: exp.id,
+        description: exp.description,
+        category: exp.category as CategoryId,
+        amountUSD: exp.amount_usd ? Number(exp.amount_usd) : undefined,
+        amountEUR: exp.amount_eur ? Number(exp.amount_eur) : undefined,
+        currency: exp.currency as Expense['currency'],
+        date: exp.date,
+        note: exp.note || undefined,
+      }));
+
+      setExpenses(mappedExpenses);
+    } catch (error) {
+      console.error('Error fetching expenses:', error);
+      toast.error('Error al cargar los gastos');
+    }
+  };
+
+  // Fetch category limits from database
+  const fetchCategoryLimits = async () => {
+    if (!user?.email) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('category_limits')
+        .select('*')
+        .eq('user_email', user.email);
+
+      if (error) throw error;
+
+      const mappedLimits: CategoryLimit[] = (data || []).map(limit => ({
+        categoryId: limit.category_id as CategoryId,
+        limitUSD: limit.limit_usd ? Number(limit.limit_usd) : undefined,
+        limitEUR: limit.limit_eur ? Number(limit.limit_eur) : undefined,
+        currency: limit.currency as CategoryLimit['currency'],
+      }));
+
+      setCategoryLimits(mappedLimits);
+    } catch (error) {
+      console.error('Error fetching category limits:', error);
+      toast.error('Error al cargar los límites');
+    }
+  };
+
+  // Load data when user changes
   useEffect(() => {
-    localStorage.setItem('expenses', JSON.stringify(expenses));
-  }, [expenses]);
-
-  useEffect(() => {
-    localStorage.setItem('categoryLimits', JSON.stringify(categoryLimits));
-  }, [categoryLimits]);
-
-  const addExpense = (expense: Omit<Expense, 'id'>) => {
-    const newExpense: Expense = {
-      ...expense,
-      id: crypto.randomUUID(),
+    const loadData = async () => {
+      setIsLoading(true);
+      if (user?.email) {
+        await Promise.all([fetchExpenses(), fetchCategoryLimits()]);
+      } else {
+        setExpenses([]);
+        setCategoryLimits([]);
+      }
+      setIsLoading(false);
     };
-    setExpenses(prev => [newExpense, ...prev]);
+
+    loadData();
+  }, [user?.email]);
+
+  const addExpense = async (expense: Omit<Expense, 'id'>) => {
+    if (!user?.email) {
+      toast.error('Debes iniciar sesión para agregar gastos');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('expenses')
+        .insert({
+          user_email: user.email,
+          description: expense.description,
+          category: expense.category,
+          amount_usd: expense.amountUSD || null,
+          amount_eur: expense.amountEUR || null,
+          currency: expense.currency,
+          date: expense.date,
+          note: expense.note || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newExpense: Expense = {
+        id: data.id,
+        description: data.description,
+        category: data.category as CategoryId,
+        amountUSD: data.amount_usd ? Number(data.amount_usd) : undefined,
+        amountEUR: data.amount_eur ? Number(data.amount_eur) : undefined,
+        currency: data.currency as Expense['currency'],
+        date: data.date,
+        note: data.note || undefined,
+      };
+
+      setExpenses(prev => [newExpense, ...prev]);
+      toast.success('Gasto agregado correctamente');
+    } catch (error) {
+      console.error('Error adding expense:', error);
+      toast.error('Error al agregar el gasto');
+    }
   };
 
-  const deleteExpense = (id: string) => {
-    setExpenses(prev => prev.filter(exp => exp.id !== id));
+  const deleteExpense = async (id: string) => {
+    if (!user?.email) return;
+
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .delete()
+        .eq('id', id)
+        .eq('user_email', user.email);
+
+      if (error) throw error;
+
+      setExpenses(prev => prev.filter(exp => exp.id !== id));
+      toast.success('Gasto eliminado');
+    } catch (error) {
+      console.error('Error deleting expense:', error);
+      toast.error('Error al eliminar el gasto');
+    }
   };
 
-  const setCategoryLimit = (limit: CategoryLimit) => {
-    setCategoryLimits(prev => {
-      const filtered = prev.filter(l => l.categoryId !== limit.categoryId);
-      return [...filtered, limit];
-    });
+  const setCategoryLimit = async (limit: CategoryLimit) => {
+    if (!user?.email) {
+      toast.error('Debes iniciar sesión para establecer límites');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('category_limits')
+        .upsert({
+          user_email: user.email,
+          category_id: limit.categoryId,
+          limit_usd: limit.limitUSD || null,
+          limit_eur: limit.limitEUR || null,
+          currency: limit.currency,
+        }, {
+          onConflict: 'user_email,category_id'
+        });
+
+      if (error) throw error;
+
+      setCategoryLimits(prev => {
+        const filtered = prev.filter(l => l.categoryId !== limit.categoryId);
+        return [...filtered, limit];
+      });
+      toast.success('Límite actualizado');
+    } catch (error) {
+      console.error('Error setting category limit:', error);
+      toast.error('Error al establecer el límite');
+    }
   };
 
-  const removeCategoryLimit = (categoryId: CategoryId) => {
-    setCategoryLimits(prev => prev.filter(l => l.categoryId !== categoryId));
+  const removeCategoryLimit = async (categoryId: CategoryId) => {
+    if (!user?.email) return;
+
+    try {
+      const { error } = await supabase
+        .from('category_limits')
+        .delete()
+        .eq('user_email', user.email)
+        .eq('category_id', categoryId);
+
+      if (error) throw error;
+
+      setCategoryLimits(prev => prev.filter(l => l.categoryId !== categoryId));
+      toast.success('Límite eliminado');
+    } catch (error) {
+      console.error('Error removing category limit:', error);
+      toast.error('Error al eliminar el límite');
+    }
   };
 
   const getTotalsByCategory = (categoryId: CategoryId) => {
@@ -121,6 +277,7 @@ export const ExpenseProvider: React.FC<ExpenseProviderProps> = ({ children }) =>
       value={{
         expenses,
         categoryLimits,
+        isLoading,
         addExpense,
         deleteExpense,
         setCategoryLimit,

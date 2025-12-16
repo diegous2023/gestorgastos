@@ -41,6 +41,81 @@ export type Database = {
         }
         Relationships: []
       }
+      category_limits: {
+        Row: {
+          category_id: string
+          created_at: string
+          currency: string
+          id: string
+          limit_eur: number | null
+          limit_usd: number | null
+          updated_at: string
+          user_email: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          currency: string
+          id?: string
+          limit_eur?: number | null
+          limit_usd?: number | null
+          updated_at?: string
+          user_email: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          limit_eur?: number | null
+          limit_usd?: number | null
+          updated_at?: string
+          user_email?: string
+        }
+        Relationships: []
+      }
+      expenses: {
+        Row: {
+          amount_eur: number | null
+          amount_usd: number | null
+          category: string
+          created_at: string
+          currency: string
+          date: string
+          description: string
+          id: string
+          note: string | null
+          updated_at: string
+          user_email: string
+        }
+        Insert: {
+          amount_eur?: number | null
+          amount_usd?: number | null
+          category: string
+          created_at?: string
+          currency: string
+          date: string
+          description: string
+          id?: string
+          note?: string | null
+          updated_at?: string
+          user_email: string
+        }
+        Update: {
+          amount_eur?: number | null
+          amount_usd?: number | null
+          category?: string
+          created_at?: string
+          currency?: string
+          date?: string
+          description?: string
+          id?: string
+          note?: string | null
+          updated_at?: string
+          user_email?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string

@@ -28,7 +28,7 @@ const ExpenseForm: React.FC = () => {
     { value: 'BOTH', label: 'USD + EUR' },
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!description.trim()) {
@@ -57,7 +57,7 @@ const ExpenseForm: React.FC = () => {
       return;
     }
 
-    addExpense({
+    await addExpense({
       description: description.trim(),
       category,
       currency,
@@ -66,8 +66,6 @@ const ExpenseForm: React.FC = () => {
       date: format(date, 'yyyy-MM-dd'),
       note: note.trim() || undefined,
     });
-
-    toast({ title: '¡Gasto agregado!', description: 'Tu gasto ha sido registrado correctamente.' });
 
     // Reset form
     setDescription('');

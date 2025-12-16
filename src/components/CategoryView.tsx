@@ -43,7 +43,7 @@ const CategoryView: React.FC = () => {
     return null;
   };
 
-  const handleSetLimit = () => {
+  const handleSetLimit = async () => {
     if (!selectedCategory) return;
 
     const usd = parseFloat(limitUSD) || 0;
@@ -62,14 +62,13 @@ const CategoryView: React.FC = () => {
       return;
     }
 
-    setCategoryLimit({
+    await setCategoryLimit({
       categoryId: selectedCategory,
       currency: limitCurrency,
       limitUSD: usd > 0 ? usd : undefined,
       limitEUR: eur > 0 ? eur : undefined,
     });
 
-    toast({ title: '¡Límite establecido!', description: 'El límite de gasto ha sido configurado.' });
     setDialogOpen(false);
     setLimitUSD('');
     setLimitEUR('');

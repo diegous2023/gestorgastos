@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ExpenseProvider } from '@/context/ExpenseContext';
+import { ExpenseProvider, useExpenses } from '@/context/ExpenseContext';
 import { useAuth } from '@/context/AuthContext';
 import Header from '@/components/Header';
 import TotalCards from '@/components/TotalCards';
@@ -9,6 +9,45 @@ import ExpenseList from '@/components/ExpenseList';
 import ChartView from '@/components/ChartView';
 import CategoryView from '@/components/CategoryView';
 import SpecialNotificationModal from '@/components/SpecialNotificationModal';
+
+const IndexContent: React.FC<{ activeTab: string; onTabChange: (tab: string) => void }> = ({ activeTab, onTabChange }) => {
+  const { isLoading } = useExpenses();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header activeTab={activeTab} onTabChange={onTabChange} />
+        <main className="max-w-4xl mx-auto px-4 py-6">
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-pulse text-muted-foreground">Cargando tus gastos...</div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Header activeTab={activeTab} onTabChange={onTabChange} />
+      
+      <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        {activeTab === 'principal' && (
+          <>
+            <TotalCards />
+            <ExpenseForm />
+            <ExpenseList />
+          </>
+        )}
+        
+        {activeTab === 'graficas' && <ChartView />}
+        
+        {activeTab === 'categorias' && <CategoryView />}
+      </main>
+      
+      <SpecialNotificationModal />
+    </div>
+  );
+};
 
 const Index: React.FC = () => {
   const [activeTab, setActiveTab] = useState('principal');
@@ -35,25 +74,7 @@ const Index: React.FC = () => {
 
   return (
     <ExpenseProvider>
-      <div className="min-h-screen bg-background">
-        <Header activeTab={activeTab} onTabChange={setActiveTab} />
-        
-        <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-          {activeTab === 'principal' && (
-            <>
-              <TotalCards />
-              <ExpenseForm />
-              <ExpenseList />
-            </>
-          )}
-          
-          {activeTab === 'graficas' && <ChartView />}
-          
-          {activeTab === 'categorias' && <CategoryView />}
-        </main>
-        
-        <SpecialNotificationModal />
-      </div>
+      <IndexContent activeTab={activeTab} onTabChange={setActiveTab} />
     </ExpenseProvider>
   );
 };
