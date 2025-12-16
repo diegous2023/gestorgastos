@@ -1,13 +1,35 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import React, { useState } from 'react';
+import { ExpenseProvider } from '@/context/ExpenseContext';
+import Header from '@/components/Header';
+import TotalCards from '@/components/TotalCards';
+import ExpenseForm from '@/components/ExpenseForm';
+import ExpenseList from '@/components/ExpenseList';
+import ChartView from '@/components/ChartView';
+import CategoryView from '@/components/CategoryView';
 
-const Index = () => {
+const Index: React.FC = () => {
+  const [activeTab, setActiveTab] = useState('principal');
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+    <ExpenseProvider>
+      <div className="min-h-screen bg-background">
+        <Header activeTab={activeTab} onTabChange={setActiveTab} />
+        
+        <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+          {activeTab === 'principal' && (
+            <>
+              <TotalCards />
+              <ExpenseForm />
+              <ExpenseList />
+            </>
+          )}
+          
+          {activeTab === 'graficas' && <ChartView />}
+          
+          {activeTab === 'categorias' && <CategoryView />}
+        </main>
       </div>
-    </div>
+    </ExpenseProvider>
   );
 };
 
