@@ -46,16 +46,81 @@ export type Database = {
           created_at: string
           id: string
           message: string
+          title: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           message: string
+          title?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           message?: string
+          title?: string | null
+        }
+        Relationships: []
+      }
+      special_notification_dismissals: {
+        Row: {
+          dismissed_at: string
+          id: string
+          notification_id: string
+          user_email: string
+        }
+        Insert: {
+          dismissed_at?: string
+          id?: string
+          notification_id: string
+          user_email: string
+        }
+        Update: {
+          dismissed_at?: string
+          id?: string
+          notification_id?: string
+          user_email?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "special_notification_dismissals_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "special_notifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      special_notifications: {
+        Row: {
+          button1_text: string
+          button2_text: string
+          created_at: string
+          description: string
+          dismiss_button: number
+          id: string
+          is_active: boolean
+          title: string
+        }
+        Insert: {
+          button1_text?: string
+          button2_text?: string
+          created_at?: string
+          description: string
+          dismiss_button?: number
+          id?: string
+          is_active?: boolean
+          title: string
+        }
+        Update: {
+          button1_text?: string
+          button2_text?: string
+          created_at?: string
+          description?: string
+          dismiss_button?: number
+          id?: string
+          is_active?: boolean
+          title?: string
         }
         Relationships: []
       }

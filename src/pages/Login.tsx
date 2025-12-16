@@ -72,21 +72,11 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/10 p-4">
-      {/* Floating particles background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(20)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-2 h-2 bg-primary/20 rounded-full animate-pulse"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 2}s`,
-              animationDuration: `${2 + Math.random() * 3}s`,
-            }}
-          />
-        ))}
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      {/* Subtle background pattern */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-30">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
       </div>
 
       <div className="w-full max-w-md relative z-10">
@@ -102,13 +92,16 @@ const Login: React.FC = () => {
         </div>
 
         {/* Login card */}
-        <div className="glass-card rounded-3xl p-8 shadow-2xl border border-border/50 backdrop-blur-xl">
+        <div className="glass-card rounded-3xl p-8 shadow-xl">
           <div className="flex flex-col items-center mb-8">
-            <img 
-              src={logo} 
-              alt="Gestor de Gastos" 
-              className="w-20 h-20 rounded-2xl object-cover mb-6 shadow-lg"
-            />
+            <div className="w-32 h-32 rounded-3xl overflow-hidden mb-6 shadow-lg bg-transparent">
+              <img 
+                src={logo} 
+                alt="Gestor de Gastos" 
+                className="w-full h-full object-cover"
+                style={{ mixBlendMode: 'multiply' }}
+              />
+            </div>
             <h1 className="font-display text-3xl font-bold gradient-text text-center">
               GESTOR DE GASTOS
             </h1>
@@ -124,7 +117,7 @@ const Login: React.FC = () => {
                 placeholder="tu@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-14 text-lg bg-secondary/50 border-border/50 rounded-xl focus:ring-2 focus:ring-primary/50"
+                className="h-14 text-lg bg-secondary/50 border-border rounded-xl focus:ring-2 focus:ring-primary/50"
               />
             </div>
             <Button

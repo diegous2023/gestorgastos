@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
-import { Trash2, Pause, Play, Bell, Users, Lock } from 'lucide-react';
+import { Trash2, Pause, Play, Bell, Users, Lock, Sparkles } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,6 +15,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 interface AuthorizedUser {
   id: string;
@@ -25,7 +28,19 @@ interface AuthorizedUser {
 
 interface Notification {
   id: string;
+  title: string | null;
   message: string;
+  created_at: string;
+}
+
+interface SpecialNotification {
+  id: string;
+  title: string;
+  description: string;
+  button1_text: string;
+  button2_text: string;
+  dismiss_button: number;
+  is_active: boolean;
   created_at: string;
 }
 
@@ -34,7 +49,7 @@ const ADMIN_PASSWORD = 'exitoso19397796';
 const Admin: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
-  const [activeTab, setActiveTab] = useState<'users' | 'notifications'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'notifications' | 'special'>('users');
   
   // Users state
   const [users, setUsers] = useState<AuthorizedUser[]>([]);
@@ -43,7 +58,16 @@ const Admin: React.FC = () => {
   
   // Notifications state
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [newNotification, setNewNotification] = useState('');
+  const [newNotificationTitle, setNewNotificationTitle] = useState('');
+  const [newNotificationMessage, setNewNotificationMessage] = useState('');
+  
+  // Special notifications state
+  const [specialNotifications, setSpecialNotifications] = useState<SpecialNotification[]>([]);
+  const [newSpecialTitle, setNewSpecialTitle] = useState('');
+  const [newSpecialDescription, setNewSpecialDescription] = useState('');
+  const [newSpecialButton1, setNewSpecialButton1] = useState('Aceptar');
+  const [newSpecialButton2, setNewSpecialButton2] = useState('Confirmo que ya revisé las actualizaciones');
+  const [newSpecialDismissButton, setNewSpecialDismissButton] = useState(2);
   
   // Dialog state
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; user: AuthorizedUser | null }>({ open: false, user: null });
@@ -60,6 +84,7 @@ const Admin: React.FC = () => {
     if (isAuthenticated) {
       fetchUsers();
       fetchNotifications();
+      fetchSpecialNotifications();
     }
   }, [isAuthenticated]);
 
@@ -82,6 +107,17 @@ const Admin: React.FC = () => {
     
     if (!error && data) {
       setNotifications(data);
+    }
+  };
+
+  const fetchSpecialNotifications = async () => {
+    const { data, error } = await supabase
+      .from('special_notifications')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (!error && data) {
+      setSpecialNotifications(data);
     }
   };
 
@@ -165,21 +201,25 @@ const Admin: React.FC = () => {
 
   const handleAddNotification = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newNotification.trim()) {
+    if (!newNotificationMessage.trim()) {
       toast({ title: "Error", description: "Escribe un mensaje", variant: "destructive" });
       return;
     }
 
     const { error } = await supabase
       .from('notifications')
-      .insert({ message: newNotification.trim() });
+      .insert({ 
+        title: newNotificationTitle.trim() || null,
+        message: newNotificationMessage.trim() 
+      });
 
     if (error) {
       toast({ title: "Error", description: "No se pudo crear la notificación", variant: "destructive" });
       return;
     }
 
-    setNewNotification('');
+    setNewNotificationTitle('');
+    setNewNotificationMessage('');
     fetchNotifications();
     toast({ title: "Éxito", description: "Notificación enviada" });
   };
@@ -196,12 +236,68 @@ const Admin: React.FC = () => {
     }
   };
 
+  const handleAddSpecialNotification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSpecialTitle.trim() || !newSpecialDescription.trim()) {
+      toast({ title: "Error", description: "Completa todos los campos", variant: "destructive" });
+      return;
+    }
+
+    const { error } = await supabase
+      .from('special_notifications')
+      .insert({ 
+        title: newSpecialTitle.trim(),
+        description: newSpecialDescription.trim(),
+        button1_text: newSpecialButton1.trim(),
+        button2_text: newSpecialButton2.trim(),
+        dismiss_button: newSpecialDismissButton,
+        is_active: true
+      });
+
+    if (error) {
+      toast({ title: "Error", description: "No se pudo crear la notificación especial", variant: "destructive" });
+      return;
+    }
+
+    setNewSpecialTitle('');
+    setNewSpecialDescription('');
+    setNewSpecialButton1('Aceptar');
+    setNewSpecialButton2('Confirmo que ya revisé las actualizaciones');
+    setNewSpecialDismissButton(2);
+    fetchSpecialNotifications();
+    toast({ title: "Éxito", description: "Notificación especial creada" });
+  };
+
+  const handleToggleSpecialNotification = async (id: string, isActive: boolean) => {
+    const { error } = await supabase
+      .from('special_notifications')
+      .update({ is_active: !isActive })
+      .eq('id', id);
+
+    if (!error) {
+      fetchSpecialNotifications();
+      toast({ title: "Éxito", description: isActive ? "Notificación desactivada" : "Notificación activada" });
+    }
+  };
+
+  const handleDeleteSpecialNotification = async (id: string) => {
+    const { error } = await supabase
+      .from('special_notifications')
+      .delete()
+      .eq('id', id);
+
+    if (!error) {
+      fetchSpecialNotifications();
+      toast({ title: "Éxito", description: "Notificación especial eliminada" });
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="glass-card rounded-2xl p-8 w-full max-w-md">
           <div className="flex flex-col items-center mb-6">
-            <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mb-4">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
               <Lock className="w-8 h-8 text-primary" />
             </div>
             <h1 className="font-display text-2xl font-bold">Panel de Administrador</h1>
@@ -216,7 +312,7 @@ const Admin: React.FC = () => {
               onChange={(e) => setPassword(e.target.value)}
               className="h-12"
             />
-            <Button type="submit" className="w-full h-12">
+            <Button type="submit" className="w-full h-12 bg-gradient-to-r from-primary to-accent">
               Ingresar
             </Button>
           </form>
@@ -242,11 +338,11 @@ const Admin: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 flex-wrap">
           <Button
             variant={activeTab === 'users' ? 'default' : 'secondary'}
             onClick={() => setActiveTab('users')}
-            className="flex items-center gap-2"
+            className={`flex items-center gap-2 ${activeTab === 'users' ? 'bg-gradient-to-r from-primary to-accent' : ''}`}
           >
             <Users className="w-4 h-4" />
             Usuarios
@@ -254,10 +350,18 @@ const Admin: React.FC = () => {
           <Button
             variant={activeTab === 'notifications' ? 'default' : 'secondary'}
             onClick={() => setActiveTab('notifications')}
-            className="flex items-center gap-2"
+            className={`flex items-center gap-2 ${activeTab === 'notifications' ? 'bg-gradient-to-r from-primary to-accent' : ''}`}
           >
             <Bell className="w-4 h-4" />
             Notificaciones
+          </Button>
+          <Button
+            variant={activeTab === 'special' ? 'default' : 'secondary'}
+            onClick={() => setActiveTab('special')}
+            className={`flex items-center gap-2 ${activeTab === 'special' ? 'bg-gradient-to-r from-primary to-accent' : ''}`}
+          >
+            <Sparkles className="w-4 h-4" />
+            Notificación Especial
           </Button>
         </div>
 
@@ -281,7 +385,7 @@ const Admin: React.FC = () => {
                   onChange={(e) => setNewEmail(e.target.value)}
                   className="flex-1"
                 />
-                <Button type="submit">Agregar</Button>
+                <Button type="submit" className="bg-gradient-to-r from-primary to-accent">Agregar</Button>
               </form>
             </div>
 
@@ -293,7 +397,7 @@ const Admin: React.FC = () => {
                   <div 
                     key={user.id} 
                     className={`flex items-center justify-between p-4 rounded-lg border ${
-                      user.status === 'suspended' ? 'bg-destructive/10 border-destructive/30' : 'bg-secondary/50 border-border/50'
+                      user.status === 'suspended' ? 'bg-destructive/5 border-destructive/30' : 'bg-secondary/50 border-border'
                     }`}
                   >
                     <div>
@@ -344,15 +448,20 @@ const Admin: React.FC = () => {
             {/* Add notification form */}
             <div className="glass-card rounded-xl p-6">
               <h2 className="font-semibold text-lg mb-4">Nueva Notificación</h2>
-              <form onSubmit={handleAddNotification} className="flex gap-3">
+              <form onSubmit={handleAddNotification} className="space-y-4">
                 <Input
                   type="text"
-                  placeholder="Mensaje de la notificación..."
-                  value={newNotification}
-                  onChange={(e) => setNewNotification(e.target.value)}
-                  className="flex-1"
+                  placeholder="Título (opcional)"
+                  value={newNotificationTitle}
+                  onChange={(e) => setNewNotificationTitle(e.target.value)}
                 />
-                <Button type="submit">Enviar</Button>
+                <Textarea
+                  placeholder="Descripción de la notificación..."
+                  value={newNotificationMessage}
+                  onChange={(e) => setNewNotificationMessage(e.target.value)}
+                  rows={3}
+                />
+                <Button type="submit" className="bg-gradient-to-r from-primary to-accent">Enviar</Button>
               </form>
             </div>
 
@@ -363,10 +472,13 @@ const Admin: React.FC = () => {
                 {notifications.map((notification) => (
                   <div 
                     key={notification.id} 
-                    className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 border border-border/50"
+                    className="flex items-start justify-between p-4 rounded-lg bg-secondary/50 border border-border"
                   >
-                    <div>
-                      <p>{notification.message}</p>
+                    <div className="flex-1">
+                      {notification.title && (
+                        <p className="font-semibold text-primary">{notification.title}</p>
+                      )}
+                      <p className="text-sm">{notification.message}</p>
                       <p className="text-xs text-muted-foreground mt-1">
                         {new Date(notification.created_at).toLocaleString('es-ES')}
                       </p>
@@ -382,6 +494,127 @@ const Admin: React.FC = () => {
                 ))}
                 {notifications.length === 0 && (
                   <p className="text-center text-muted-foreground py-8">No hay notificaciones</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'special' && (
+          <div className="space-y-6">
+            {/* Add special notification form */}
+            <div className="glass-card rounded-xl p-6">
+              <h2 className="font-semibold text-lg mb-4">Crear Notificación Especial</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Esta notificación aparecerá como una ventana emergente para todos los usuarios.
+              </p>
+              <form onSubmit={handleAddSpecialNotification} className="space-y-4">
+                <Input
+                  type="text"
+                  placeholder="Título de la notificación"
+                  value={newSpecialTitle}
+                  onChange={(e) => setNewSpecialTitle(e.target.value)}
+                />
+                <Textarea
+                  placeholder="Descripción detallada..."
+                  value={newSpecialDescription}
+                  onChange={(e) => setNewSpecialDescription(e.target.value)}
+                  rows={4}
+                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground mb-2 block">Texto del botón 1</Label>
+                    <Input
+                      type="text"
+                      placeholder="Aceptar"
+                      value={newSpecialButton1}
+                      onChange={(e) => setNewSpecialButton1(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground mb-2 block">Texto del botón 2</Label>
+                    <Input
+                      type="text"
+                      placeholder="Confirmar"
+                      value={newSpecialButton2}
+                      onChange={(e) => setNewSpecialButton2(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="p-4 bg-secondary/50 rounded-lg">
+                  <Label className="text-sm font-medium mb-3 block">¿Qué botón oculta la notificación permanentemente?</Label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input 
+                        type="radio" 
+                        name="dismissButton" 
+                        checked={newSpecialDismissButton === 1}
+                        onChange={() => setNewSpecialDismissButton(1)}
+                        className="accent-primary"
+                      />
+                      <span>Botón 1</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input 
+                        type="radio" 
+                        name="dismissButton" 
+                        checked={newSpecialDismissButton === 2}
+                        onChange={() => setNewSpecialDismissButton(2)}
+                        className="accent-primary"
+                      />
+                      <span>Botón 2</span>
+                    </label>
+                  </div>
+                </div>
+                <Button type="submit" className="bg-gradient-to-r from-primary to-accent">
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Crear Notificación Especial
+                </Button>
+              </form>
+            </div>
+
+            {/* Special notifications list */}
+            <div className="glass-card rounded-xl p-6">
+              <h2 className="font-semibold text-lg mb-4">Notificaciones Especiales</h2>
+              <div className="space-y-3">
+                {specialNotifications.map((notification) => (
+                  <div 
+                    key={notification.id} 
+                    className={`p-4 rounded-lg border ${notification.is_active ? 'bg-primary/5 border-primary/30' : 'bg-secondary/50 border-border'}`}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-semibold">{notification.title}</p>
+                          {notification.is_active && (
+                            <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">ACTIVA</span>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">{notification.description}</p>
+                        <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
+                          <span>Botón 1: {notification.button1_text}</span>
+                          <span>Botón 2: {notification.button2_text}</span>
+                          <span>Oculta con: Botón {notification.dismiss_button}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={notification.is_active}
+                          onCheckedChange={() => handleToggleSpecialNotification(notification.id, notification.is_active)}
+                        />
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          onClick={() => handleDeleteSpecialNotification(notification.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {specialNotifications.length === 0 && (
+                  <p className="text-center text-muted-foreground py-8">No hay notificaciones especiales</p>
                 )}
               </div>
             </div>
