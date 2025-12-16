@@ -30,11 +30,14 @@ const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange }) => {
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <img 
-              src={logo} 
-              alt="Gestor de Gastos" 
-              className="w-10 h-10 rounded-lg object-cover"
-            />
+            <div className="w-12 h-12 rounded-xl overflow-hidden shadow-md">
+              <img 
+                src={logo} 
+                alt="Gestor de Gastos" 
+                className="w-full h-full object-cover"
+                style={{ mixBlendMode: 'multiply' }}
+              />
+            </div>
             <div>
               <h1 className="font-display text-xl font-bold gradient-text">
                 Gestor de Gastos
@@ -72,7 +75,7 @@ const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange }) => {
               className={`
                 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300
                 ${activeTab === tab.id 
-                  ? 'bg-primary text-primary-foreground shadow-lg' 
+                  ? 'bg-gradient-to-r from-primary to-accent text-primary-foreground shadow-lg' 
                   : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
                 }
               `}

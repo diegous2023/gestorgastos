@@ -8,6 +8,7 @@ import ExpenseForm from '@/components/ExpenseForm';
 import ExpenseList from '@/components/ExpenseList';
 import ChartView from '@/components/ChartView';
 import CategoryView from '@/components/CategoryView';
+import SpecialNotificationModal from '@/components/SpecialNotificationModal';
 
 const Index: React.FC = () => {
   const [activeTab, setActiveTab] = useState('principal');
@@ -50,6 +51,8 @@ const Index: React.FC = () => {
           
           {activeTab === 'categorias' && <CategoryView />}
         </main>
+        
+        <SpecialNotificationModal />
       </div>
     </ExpenseProvider>
   );

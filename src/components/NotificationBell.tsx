@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 
 interface Notification {
   id: string;
+  title: string | null;
   message: string;
   created_at: string;
 }
@@ -127,11 +128,14 @@ const NotificationBell: React.FC = () => {
             notifications.map((notification) => (
               <div
                 key={notification.id}
-                className={`p-4 border-b border-border/50 cursor-pointer hover:bg-secondary/50 transition-colors ${
+                className={`p-4 border-b border-border/50 cursor-pointer hover:bg-secondary transition-colors ${
                   !readIds.has(notification.id) ? 'bg-primary/5' : ''
                 }`}
                 onClick={() => markAsRead(notification.id)}
               >
+                {notification.title && (
+                  <p className="font-semibold text-primary text-sm mb-1">{notification.title}</p>
+                )}
                 <p className="text-sm">{notification.message}</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {new Date(notification.created_at).toLocaleString('es-ES')}
