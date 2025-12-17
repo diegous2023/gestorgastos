@@ -9,6 +9,7 @@ import ExpenseList from '@/components/ExpenseList';
 import ChartView from '@/components/ChartView';
 import CategoryView from '@/components/CategoryView';
 import SpecialNotificationModal from '@/components/SpecialNotificationModal';
+import PersonalizedNotificationModal from '@/components/PersonalizedNotificationModal';
 
 const IndexContent: React.FC<{ activeTab: string; onTabChange: (tab: string) => void }> = ({ activeTab, onTabChange }) => {
   const { isLoading } = useExpenses();
@@ -45,6 +46,7 @@ const IndexContent: React.FC<{ activeTab: string; onTabChange: (tab: string) => 
       </main>
       
       <SpecialNotificationModal />
+      <PersonalizedNotificationModal />
     </div>
   );
 };
