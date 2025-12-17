@@ -228,6 +228,48 @@ export type Database = {
           },
         ]
       }
+      user_personalized_notifications: {
+        Row: {
+          button1_text: string
+          button2_text: string
+          created_at: string
+          description: string
+          dismiss_button: number
+          id: string
+          is_active: boolean
+          is_dismissed: boolean
+          title: string
+          updated_at: string
+          user_email: string
+        }
+        Insert: {
+          button1_text?: string
+          button2_text?: string
+          created_at?: string
+          description: string
+          dismiss_button?: number
+          id?: string
+          is_active?: boolean
+          is_dismissed?: boolean
+          title: string
+          updated_at?: string
+          user_email: string
+        }
+        Update: {
+          button1_text?: string
+          button2_text?: string
+          created_at?: string
+          description?: string
+          dismiss_button?: number
+          id?: string
+          is_active?: boolean
+          is_dismissed?: boolean
+          title?: string
+          updated_at?: string
+          user_email?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
