@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Target } from 'lucide-react';
 import { useExpenses } from '@/context/ExpenseContext';
-import { CATEGORIES, CategoryId, Currency } from '@/types/expense';
+import { CATEGORIES, CategoryId, Currency, Category } from '@/types/expense';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import CategoryHistoryModal from './CategoryHistoryModal';
+import CreateCategoryModal from './CreateCategoryModal';
 
 const CategoryView: React.FC = () => {
   const { getTotalsByCategory, categoryLimits, setCategoryLimit } = useExpenses();
@@ -16,6 +18,11 @@ const CategoryView: React.FC = () => {
   const [limitUSD, setLimitUSD] = useState('');
   const [limitEUR, setLimitEUR] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [historyCategory, setHistoryCategory] = useState<CategoryId | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [customCategories, setCustomCategories] = useState<Category[]>([]);
+
+  const allCategories = [...CATEGORIES, ...customCategories];
 
   const getLimit = (categoryId: CategoryId) => {
     return categoryLimits.find(l => l.categoryId === categoryId);
@@ -75,6 +82,15 @@ const CategoryView: React.FC = () => {
     setSelectedCategory(null);
   };
 
+  const handleCategoryClick = (categoryId: CategoryId) => {
+    setHistoryCategory(categoryId);
+    setHistoryOpen(true);
+  };
+
+  const handleCreateCategory = (category: Category) => {
+    setCustomCategories(prev => [...prev, category]);
+  };
+
   const currencies: { value: Currency; label: string }[] = [
     { value: 'USD', label: 'USD' },
     { value: 'EUR', label: 'EUR' },
@@ -97,8 +113,8 @@ const CategoryView: React.FC = () => {
           <div className="space-y-4">
             <div>
               <p className="text-sm font-medium text-muted-foreground mb-2">Categoría</p>
-              <div className="grid grid-cols-3 gap-2">
-                {CATEGORIES.map((cat) => (
+              <div className="grid grid-cols-3 gap-2 max-h-[200px] overflow-y-auto">
+                {allCategories.map((cat) => (
                   <button
                     key={cat.id}
                     type="button"
@@ -169,7 +185,7 @@ const CategoryView: React.FC = () => {
       </Dialog>
 
       <div className="space-y-4">
-        {CATEGORIES.map((category, index) => {
+        {allCategories.map((category, index) => {
           const totals = getTotalsByCategory(category.id);
           const limit = getLimit(category.id);
           
@@ -178,6 +194,7 @@ const CategoryView: React.FC = () => {
               key={category.id} 
               className="category-card"
               style={{ animationDelay: `${index * 50}ms` }}
+              onClick={() => handleCategoryClick(category.id)}
             >
               <div className="flex items-center gap-3 mb-3">
                 <span className="text-3xl">{category.icon}</span>
@@ -194,7 +211,7 @@ const CategoryView: React.FC = () => {
                 </div>
 
                 {limit && (
-                  <div className="space-y-2 pt-2 border-t border-border">
+                  <div className="space-y-2 pt-2 border-t border-border" onClick={(e) => e.stopPropagation()}>
                     {limit.limitUSD && (
                       <div>
                         <div className="flex justify-between text-xs mb-1">
@@ -240,7 +257,20 @@ const CategoryView: React.FC = () => {
             </div>
           );
         })}
+
+        {/* Create Category Card */}
+        <CreateCategoryModal 
+          onCreateCategory={handleCreateCategory}
+          existingCategories={allCategories.map(c => c.id)}
+        />
       </div>
+
+      {/* History Modal */}
+      <CategoryHistoryModal 
+        categoryId={historyCategory}
+        isOpen={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+      />
     </div>
   );
 };
