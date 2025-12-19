@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { Session } from '@supabase/supabase-js';
 
 interface AuthUser {
   email: string;
@@ -8,8 +9,9 @@ interface AuthUser {
 
 interface AuthContextType {
   user: AuthUser | null;
+  session: Session | null;
   login: (email: string) => Promise<{ success: boolean; error?: string }>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -25,59 +27,97 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is already logged in
-    const storedUser = localStorage.getItem('expense_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        
+        // Extract user info from app_metadata if available
+        if (session?.user?.app_metadata?.authorized_email) {
+          setUser({
+            email: session.user.app_metadata.authorized_email,
+            name: session.user.app_metadata.authorized_name || '',
+          });
+        } else {
+          setUser(null);
+        }
+      }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      
+      if (session?.user?.app_metadata?.authorized_email) {
+        setUser({
+          email: session.user.app_metadata.authorized_email,
+          name: session.user.app_metadata.authorized_name || '',
+        });
+      }
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (email: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const { data, error } = await supabase
-        .from('authorized_users')
-        .select('email, name, status')
-        .eq('email', email.toLowerCase().trim())
-        .maybeSingle();
+      // First, sign in anonymously to get a session
+      const { data: signInData, error: signInError } = await supabase.auth.signInAnonymously();
+      
+      if (signInError) {
+        console.error('Anonymous sign in error:', signInError);
+        return { success: false, error: 'Error de conexión' };
+      }
+
+      // Call the edge function to validate email and set app_metadata
+      const { data, error } = await supabase.functions.invoke('authorize-user', {
+        body: { email: email.toLowerCase().trim() }
+      });
 
       if (error) {
+        console.error('Edge function error:', error);
+        // Sign out since authorization failed
+        await supabase.auth.signOut();
         return { success: false, error: 'Error al verificar el correo' };
       }
 
-      if (!data) {
-        return { 
-          success: false, 
-          error: 'Este correo no se encuentra autorizado por favor contacte al administrador 🚀' 
-        };
+      if (data.error) {
+        // Sign out since authorization failed
+        await supabase.auth.signOut();
+        return { success: false, error: data.error };
       }
 
-      if (data.status === 'suspended') {
-        return { 
-          success: false, 
-          error: 'Tu cuenta ha sido suspendida. Contacta al administrador.' 
-        };
+      // Refresh the session to get updated app_metadata
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      
+      if (refreshError) {
+        console.error('Session refresh error:', refreshError);
+        return { success: false, error: 'Error al actualizar la sesión' };
       }
 
-      const authUser = { email: data.email, name: data.name };
-      setUser(authUser);
-      localStorage.setItem('expense_user', JSON.stringify(authUser));
+      // Set user from the response
+      setUser({ email: data.email, name: data.name });
+      
       return { success: true };
     } catch (err) {
+      console.error('Login error:', err);
       return { success: false, error: 'Error de conexión' };
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem('expense_user');
+    setSession(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, session, login, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
