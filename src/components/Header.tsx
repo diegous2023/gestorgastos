@@ -18,6 +18,7 @@ const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange }) => {
     { id: 'principal', label: 'Principal' },
     { id: 'graficas', label: 'Gráficas' },
     { id: 'categorias', label: 'Categorías' },
+    { id: 'analisis', label: '¿En qué gasto más?' },
   ];
 
   const handleUpdateApp = () => {
@@ -65,13 +66,13 @@ const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange }) => {
           </div>
         </div>
         
-        <nav className="flex gap-2">
+        <nav className="flex gap-2 overflow-x-auto pb-1">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
               className={`
-                px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300
+                px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 whitespace-nowrap
                 ${activeTab === tab.id 
                   ? 'bg-gradient-to-r from-primary to-accent text-primary-foreground shadow-lg' 
                   : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'

@@ -8,6 +8,8 @@ import ExpenseForm from '@/components/ExpenseForm';
 import ExpenseList from '@/components/ExpenseList';
 import ChartView from '@/components/ChartView';
 import CategoryView from '@/components/CategoryView';
+import SpendingAnalysis from '@/components/SpendingAnalysis';
+import FinanceQuotes from '@/components/FinanceQuotes';
 import SpecialNotificationModal from '@/components/SpecialNotificationModal';
 import PersonalizedNotificationModal from '@/components/PersonalizedNotificationModal';
 
@@ -32,6 +34,9 @@ const IndexContent: React.FC<{ activeTab: string; onTabChange: (tab: string) => 
       <Header activeTab={activeTab} onTabChange={onTabChange} />
       
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        {/* Finance Quotes - Always visible */}
+        <FinanceQuotes />
+
         {activeTab === 'principal' && (
           <>
             <TotalCards />
@@ -43,6 +48,8 @@ const IndexContent: React.FC<{ activeTab: string; onTabChange: (tab: string) => 
         {activeTab === 'graficas' && <ChartView />}
         
         {activeTab === 'categorias' && <CategoryView />}
+
+        {activeTab === 'analisis' && <SpendingAnalysis />}
       </main>
       
       <SpecialNotificationModal />
