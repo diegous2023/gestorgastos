@@ -11,6 +11,7 @@ interface PersonalizedNotification {
   button1_text: string;
   button2_text: string;
   dismiss_button: number;
+  button_count: number;
 }
 
 const PersonalizedNotificationModal: React.FC = () => {
@@ -46,17 +47,18 @@ const PersonalizedNotificationModal: React.FC = () => {
   const handleButtonClick = async (buttonNumber: number) => {
     if (!notification) return;
 
-    if (buttonNumber === notification.dismiss_button) {
+    // For single button notifications, always dismiss
+    // For two button notifications, dismiss only if the dismiss button is clicked
+    const shouldDismiss = notification.button_count === 1 || buttonNumber === notification.dismiss_button;
+
+    if (shouldDismiss) {
       // Dismiss permanently by updating is_dismissed
       await supabase
         .from('user_personalized_notifications')
         .update({ is_dismissed: true })
         .eq('id', notification.id);
-      setIsVisible(false);
-    } else {
-      // Just close for now (will show again on next visit)
-      setIsVisible(false);
     }
+    setIsVisible(false);
   };
 
   if (!isVisible || !notification) return null;
@@ -89,13 +91,15 @@ const PersonalizedNotificationModal: React.FC = () => {
           >
             {notification.button1_text}
           </Button>
-          <Button
-            onClick={() => handleButtonClick(2)}
-            variant="secondary"
-            className="w-full h-14 text-lg font-semibold rounded-xl bg-gradient-to-r from-accent to-primary text-primary-foreground hover:opacity-90 transition-all"
-          >
-            {notification.button2_text}
-          </Button>
+          {notification.button_count === 2 && (
+            <Button
+              onClick={() => handleButtonClick(2)}
+              variant="secondary"
+              className="w-full h-14 text-lg font-semibold rounded-xl bg-gradient-to-r from-accent to-primary text-primary-foreground hover:opacity-90 transition-all"
+            >
+              {notification.button2_text}
+            </Button>
+          )}
         </div>
       </div>
     </div>

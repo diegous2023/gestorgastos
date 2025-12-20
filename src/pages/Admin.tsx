@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
-import { Trash2, Pause, Play, Bell, Users, Lock, Sparkles, UserCircle, LogOut } from 'lucide-react';
+import { Trash2, Pause, Play, Bell, Users, Lock, Sparkles, UserCircle, LogOut, Pencil, X } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,6 +41,7 @@ interface SpecialNotification {
   button1_text: string;
   button2_text: string;
   dismiss_button: number;
+  button_count: number;
   is_active: boolean;
   created_at: string;
 }
@@ -53,6 +54,7 @@ interface PersonalizedNotification {
   button1_text: string;
   button2_text: string;
   dismiss_button: number;
+  button_count: number;
   is_active: boolean;
   is_dismissed: boolean;
   created_at: string;
@@ -83,6 +85,8 @@ const Admin: React.FC = () => {
   const [newSpecialButton1, setNewSpecialButton1] = useState('Aceptar');
   const [newSpecialButton2, setNewSpecialButton2] = useState('Confirmo que ya revisé las actualizaciones');
   const [newSpecialDismissButton, setNewSpecialDismissButton] = useState(2);
+  const [newSpecialButtonCount, setNewSpecialButtonCount] = useState(2);
+  const [editingSpecial, setEditingSpecial] = useState<SpecialNotification | null>(null);
 
   // Personalized notifications state
   const [personalizedNotifications, setPersonalizedNotifications] = useState<PersonalizedNotification[]>([]);
@@ -326,8 +330,9 @@ const Admin: React.FC = () => {
         title: newSpecialTitle.trim(),
         description: newSpecialDescription.trim(),
         button1_text: newSpecialButton1.trim(),
-        button2_text: newSpecialButton2.trim(),
-        dismiss_button: newSpecialDismissButton,
+        button2_text: newSpecialButtonCount === 2 ? newSpecialButton2.trim() : '',
+        dismiss_button: newSpecialButtonCount === 1 ? 1 : newSpecialDismissButton,
+        button_count: newSpecialButtonCount,
         is_active: true
       });
 
@@ -336,13 +341,58 @@ const Admin: React.FC = () => {
       return;
     }
 
+    resetSpecialForm();
+    fetchSpecialNotifications();
+    toast({ title: "Éxito", description: "Notificación especial creada" });
+  };
+
+  const resetSpecialForm = () => {
     setNewSpecialTitle('');
     setNewSpecialDescription('');
     setNewSpecialButton1('Aceptar');
     setNewSpecialButton2('Confirmo que ya revisé las actualizaciones');
     setNewSpecialDismissButton(2);
+    setNewSpecialButtonCount(2);
+    setEditingSpecial(null);
+  };
+
+  const handleEditSpecialNotification = (notification: SpecialNotification) => {
+    setEditingSpecial(notification);
+    setNewSpecialTitle(notification.title);
+    setNewSpecialDescription(notification.description);
+    setNewSpecialButton1(notification.button1_text);
+    setNewSpecialButton2(notification.button2_text);
+    setNewSpecialDismissButton(notification.dismiss_button);
+    setNewSpecialButtonCount(notification.button_count);
+  };
+
+  const handleUpdateSpecialNotification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSpecial || !newSpecialTitle.trim() || !newSpecialDescription.trim()) {
+      toast({ title: "Error", description: "Completa todos los campos", variant: "destructive" });
+      return;
+    }
+
+    const { error } = await supabase
+      .from('special_notifications')
+      .update({ 
+        title: newSpecialTitle.trim(),
+        description: newSpecialDescription.trim(),
+        button1_text: newSpecialButton1.trim(),
+        button2_text: newSpecialButtonCount === 2 ? newSpecialButton2.trim() : '',
+        dismiss_button: newSpecialButtonCount === 1 ? 1 : newSpecialDismissButton,
+        button_count: newSpecialButtonCount
+      })
+      .eq('id', editingSpecial.id);
+
+    if (error) {
+      toast({ title: "Error", description: "No se pudo actualizar la notificación", variant: "destructive" });
+      return;
+    }
+
+    resetSpecialForm();
     fetchSpecialNotifications();
-    toast({ title: "Éxito", description: "Notificación especial creada" });
+    toast({ title: "Éxito", description: "Notificación actualizada" });
   };
 
   const handleToggleSpecialNotification = async (id: string, isActive: boolean) => {
@@ -700,13 +750,22 @@ const Admin: React.FC = () => {
 
         {activeTab === 'special' && (
           <div className="space-y-6">
-            {/* Add special notification form */}
+            {/* Add/Edit special notification form */}
             <div className="glass-card rounded-xl p-6">
-              <h2 className="font-semibold text-lg mb-4">Crear Notificación Especial</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold text-lg">
+                  {editingSpecial ? 'Editar Notificación Especial' : 'Crear Notificación Especial'}
+                </h2>
+                {editingSpecial && (
+                  <Button variant="ghost" size="sm" onClick={resetSpecialForm}>
+                    <X className="w-4 h-4 mr-1" /> Cancelar
+                  </Button>
+                )}
+              </div>
               <p className="text-sm text-muted-foreground mb-4">
                 Esta notificación aparecerá como una ventana emergente para todos los usuarios.
               </p>
-              <form onSubmit={handleAddSpecialNotification} className="space-y-4">
+              <form onSubmit={editingSpecial ? handleUpdateSpecialNotification : handleAddSpecialNotification} className="space-y-4">
                 <Input
                   type="text"
                   placeholder="Título de la notificación"
@@ -719,6 +778,37 @@ const Admin: React.FC = () => {
                   onChange={(e) => setNewSpecialDescription(e.target.value)}
                   rows={4}
                 />
+                
+                {/* Button count selector */}
+                <div className="p-4 bg-secondary/50 rounded-lg">
+                  <Label className="text-sm font-medium mb-3 block">¿Cuántos botones tendrá la notificación?</Label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input 
+                        type="radio" 
+                        name="buttonCount" 
+                        checked={newSpecialButtonCount === 1}
+                        onChange={() => {
+                          setNewSpecialButtonCount(1);
+                          setNewSpecialDismissButton(1);
+                        }}
+                        className="accent-primary"
+                      />
+                      <span>1 botón (siempre oculta)</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input 
+                        type="radio" 
+                        name="buttonCount" 
+                        checked={newSpecialButtonCount === 2}
+                        onChange={() => setNewSpecialButtonCount(2)}
+                        className="accent-primary"
+                      />
+                      <span>2 botones</span>
+                    </label>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm text-muted-foreground mb-2 block">Texto del botón 1</Label>
@@ -729,44 +819,50 @@ const Admin: React.FC = () => {
                       onChange={(e) => setNewSpecialButton1(e.target.value)}
                     />
                   </div>
-                  <div>
-                    <Label className="text-sm text-muted-foreground mb-2 block">Texto del botón 2</Label>
-                    <Input
-                      type="text"
-                      placeholder="Confirmar"
-                      value={newSpecialButton2}
-                      onChange={(e) => setNewSpecialButton2(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="p-4 bg-secondary/50 rounded-lg">
-                  <Label className="text-sm font-medium mb-3 block">¿Qué botón oculta la notificación permanentemente?</Label>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input 
-                        type="radio" 
-                        name="dismissButton" 
-                        checked={newSpecialDismissButton === 1}
-                        onChange={() => setNewSpecialDismissButton(1)}
-                        className="accent-primary"
+                  {newSpecialButtonCount === 2 && (
+                    <div>
+                      <Label className="text-sm text-muted-foreground mb-2 block">Texto del botón 2</Label>
+                      <Input
+                        type="text"
+                        placeholder="Confirmar"
+                        value={newSpecialButton2}
+                        onChange={(e) => setNewSpecialButton2(e.target.value)}
                       />
-                      <span>Botón 1</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input 
-                        type="radio" 
-                        name="dismissButton" 
-                        checked={newSpecialDismissButton === 2}
-                        onChange={() => setNewSpecialDismissButton(2)}
-                        className="accent-primary"
-                      />
-                      <span>Botón 2</span>
-                    </label>
-                  </div>
+                    </div>
+                  )}
                 </div>
+
+                {newSpecialButtonCount === 2 && (
+                  <div className="p-4 bg-secondary/50 rounded-lg">
+                    <Label className="text-sm font-medium mb-3 block">¿Qué botón oculta la notificación permanentemente?</Label>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input 
+                          type="radio" 
+                          name="dismissButton" 
+                          checked={newSpecialDismissButton === 1}
+                          onChange={() => setNewSpecialDismissButton(1)}
+                          className="accent-primary"
+                        />
+                        <span>Botón 1</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input 
+                          type="radio" 
+                          name="dismissButton" 
+                          checked={newSpecialDismissButton === 2}
+                          onChange={() => setNewSpecialDismissButton(2)}
+                          className="accent-primary"
+                        />
+                        <span>Botón 2</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
                 <Button type="submit" className="bg-gradient-to-r from-primary to-accent">
                   <Sparkles className="w-4 h-4 mr-2" />
-                  Crear Notificación Especial
+                  {editingSpecial ? 'Guardar Cambios' : 'Crear Notificación Especial'}
                 </Button>
               </form>
             </div>
@@ -787,15 +883,29 @@ const Admin: React.FC = () => {
                           {notification.is_active && (
                             <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">ACTIVA</span>
                           )}
+                          <span className="text-xs bg-secondary text-muted-foreground px-2 py-0.5 rounded-full">
+                            {notification.button_count === 1 ? '1 botón' : '2 botones'}
+                          </span>
                         </div>
                         <p className="text-sm text-muted-foreground">{notification.description}</p>
-                        <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
+                        <div className="flex flex-wrap gap-4 mt-2 text-xs text-muted-foreground">
                           <span>Botón 1: {notification.button1_text}</span>
-                          <span>Botón 2: {notification.button2_text}</span>
-                          <span>Oculta con: Botón {notification.dismiss_button}</span>
+                          {notification.button_count === 2 && (
+                            <>
+                              <span>Botón 2: {notification.button2_text}</span>
+                              <span>Oculta con: Botón {notification.dismiss_button}</span>
+                            </>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleEditSpecialNotification(notification)}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
                         <Switch
                           checked={notification.is_active}
                           onCheckedChange={() => handleToggleSpecialNotification(notification.id, notification.is_active)}

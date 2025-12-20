@@ -11,6 +11,7 @@ interface SpecialNotification {
   button1_text: string;
   button2_text: string;
   dismiss_button: number;
+  button_count: number;
 }
 
 const SpecialNotificationModal: React.FC = () => {
@@ -55,7 +56,11 @@ const SpecialNotificationModal: React.FC = () => {
   const handleButtonClick = async (buttonNumber: number) => {
     if (!notification || !user?.email) return;
 
-    if (buttonNumber === notification.dismiss_button) {
+    // For single button notifications, always dismiss
+    // For two button notifications, dismiss only if the dismiss button is clicked
+    const shouldDismiss = notification.button_count === 1 || buttonNumber === notification.dismiss_button;
+
+    if (shouldDismiss) {
       // Dismiss permanently
       await supabase
         .from('special_notification_dismissals')
@@ -63,9 +68,7 @@ const SpecialNotificationModal: React.FC = () => {
           user_email: user.email, 
           notification_id: notification.id 
         });
-      setIsVisible(false);
     }
-    // If not the dismiss button, just close for now (will show again on next visit)
     setIsVisible(false);
   };
 
@@ -99,13 +102,15 @@ const SpecialNotificationModal: React.FC = () => {
           >
             {notification.button1_text}
           </Button>
-          <Button
-            onClick={() => handleButtonClick(2)}
-            variant="secondary"
-            className="w-full h-14 text-lg font-semibold rounded-xl bg-gradient-to-r from-accent to-primary text-primary-foreground hover:opacity-90 transition-all"
-          >
-            {notification.button2_text}
-          </Button>
+          {notification.button_count === 2 && (
+            <Button
+              onClick={() => handleButtonClick(2)}
+              variant="secondary"
+              className="w-full h-14 text-lg font-semibold rounded-xl bg-gradient-to-r from-accent to-primary text-primary-foreground hover:opacity-90 transition-all"
+            >
+              {notification.button2_text}
+            </Button>
+          )}
         </div>
       </div>
     </div>

@@ -225,6 +225,7 @@ export type Database = {
       }
       special_notifications: {
         Row: {
+          button_count: number
           button1_text: string
           button2_text: string
           created_at: string
@@ -235,6 +236,7 @@ export type Database = {
           title: string
         }
         Insert: {
+          button_count?: number
           button1_text?: string
           button2_text?: string
           created_at?: string
@@ -245,6 +247,7 @@ export type Database = {
           title: string
         }
         Update: {
+          button_count?: number
           button1_text?: string
           button2_text?: string
           created_at?: string
@@ -287,6 +290,7 @@ export type Database = {
       }
       user_personalized_notifications: {
         Row: {
+          button_count: number
           button1_text: string
           button2_text: string
           created_at: string
@@ -300,6 +304,7 @@ export type Database = {
           user_email: string
         }
         Insert: {
+          button_count?: number
           button1_text?: string
           button2_text?: string
           created_at?: string
@@ -313,6 +318,7 @@ export type Database = {
           user_email: string
         }
         Update: {
+          button_count?: number
           button1_text?: string
           button2_text?: string
           created_at?: string
