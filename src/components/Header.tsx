@@ -29,36 +29,38 @@ const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange }) => {
   return (
     <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-xl border-b border-border">
       <div className="max-w-4xl mx-auto px-4 py-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl overflow-hidden shadow-md">
-              <img
-                src={logo}
-                alt="Gestor de Gastos"
-                className="w-full h-full object-cover"
-                style={{ mixBlendMode: 'multiply' }}
-              />
-            </div>
-            <div>
-              <h1 className="font-display text-xl font-bold gradient-text">Bienvenido, {user?.name || 'Usuario'}</h1>
-              <p className="text-xs text-muted-foreground">Controla tu dinero o él te controlará a ti 🚀</p>
-            </div>
+        {/* Primera fila: Logo + nombre */}
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-xl overflow-hidden shadow-md flex-shrink-0">
+            <img
+              src={logo}
+              alt="Gestor de Gastos"
+              className="w-full h-full object-cover"
+              style={{ mixBlendMode: 'multiply' }}
+            />
           </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="font-display text-lg font-bold gradient-text truncate">Bienvenido, {user?.name || 'Usuario'}</h1>
+            <p className="text-xs text-muted-foreground truncate">Controla tu dinero o él te controlará a ti 🚀</p>
+          </div>
+        </div>
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleUpdateApp}
-              className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3"
-            >
-              <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Refrescar App</span>
-              <span className="sm:hidden">Refrescar</span>
-            </Button>
+        {/* Segunda fila: Botones de acción */}
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleUpdateApp}
+            className="flex items-center gap-1 text-xs px-2 py-1"
+          >
+            <RefreshCw className="w-3 h-3" />
+            <span>Refrescar</span>
+          </Button>
+          
+          <div className="flex items-center gap-1">
             <NotificationBell />
-            <Button variant="ghost" size="sm" onClick={logout}>
-              Cerrar Sesión
+            <Button variant="ghost" size="sm" onClick={logout} className="text-xs px-2 py-1">
+              Salir
             </Button>
           </div>
         </div>
