@@ -11,9 +11,10 @@ import { CATEGORIES, CategoryId, Currency } from '@/types/expense';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import ExpenseSuccessModal from './ExpenseSuccessModal';
+import CreateCategoryInline from './CreateCategoryInline';
 
 const ExpenseForm: React.FC = () => {
-  const { addExpense, customCategories } = useExpenses();
+  const { addExpense, customCategories, addCustomCategory } = useExpenses();
   const { toast } = useToast();
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<CategoryId | null>(null);
@@ -97,7 +98,7 @@ const ExpenseForm: React.FC = () => {
 
           <div>
             <p className="text-sm font-medium text-muted-foreground mb-2">Categoría</p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               {allCategories.map((cat) => (
                 <button
                   key={cat.id}
@@ -111,9 +112,15 @@ const ExpenseForm: React.FC = () => {
                   )}
                 >
                   <span className="text-lg">{cat.icon}</span>
-                  <span className="text-xs font-medium">{cat.name}</span>
+                  <span className="text-xs font-medium truncate w-full text-center">{cat.name}</span>
                 </button>
               ))}
+              {/* Create category button - always at the end */}
+              <CreateCategoryInline
+                onCreateCategory={addCustomCategory}
+                onCategoryCreated={(id) => setCategory(id)}
+                existingCategories={allCategories.map(c => c.id)}
+              />
             </div>
           </div>
 
