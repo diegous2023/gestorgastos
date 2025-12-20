@@ -13,8 +13,8 @@ const EMOJI_OPTIONS = [
 ];
 
 interface CreateCategoryModalProps {
-  onCreateCategory: (category: Category) => void;
-  existingCategories: CategoryId[];
+  onCreateCategory: (category: Category) => Promise<void>;
+  existingCategories: string[];
 }
 
 const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({ onCreateCategory, existingCategories }) => {
@@ -23,7 +23,7 @@ const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({ onCreateCateg
   const [name, setName] = useState('');
   const [selectedEmoji, setSelectedEmoji] = useState('');
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!name.trim()) {
       toast({ title: 'Error', description: 'Ingresa un nombre para la categoría', variant: 'destructive' });
       return;
@@ -48,8 +48,7 @@ const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({ onCreateCateg
       color: `hsl(${Math.floor(Math.random() * 360)} 70% 50%)`,
     };
 
-    onCreateCategory(newCategory);
-    toast({ title: 'Éxito', description: `Categoría "${name}" creada correctamente` });
+    await onCreateCategory(newCategory);
     setName('');
     setSelectedEmoji('');
     setIsOpen(false);
