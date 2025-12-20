@@ -12,6 +12,7 @@ import { CATEGORIES, CategoryId, Currency } from '@/types/expense';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import ExpenseSuccessModal from './ExpenseSuccessModal';
+import CreateCategoryModal from './CreateCategoryModal';
 
 interface BreakdownItem {
   id: string;
