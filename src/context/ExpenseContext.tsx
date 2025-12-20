@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Expense, CategoryLimit, CategoryId } from '@/types/expense';
+import { Expense, CategoryLimit, CategoryId, Category } from '@/types/expense';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { toast } from 'sonner';
@@ -7,11 +7,13 @@ import { toast } from 'sonner';
 interface ExpenseContextType {
   expenses: Expense[];
   categoryLimits: CategoryLimit[];
+  customCategories: Category[];
   isLoading: boolean;
   addExpense: (expense: Omit<Expense, 'id'>) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   setCategoryLimit: (limit: CategoryLimit) => Promise<void>;
   removeCategoryLimit: (categoryId: CategoryId) => Promise<void>;
+  addCustomCategory: (category: Category) => Promise<void>;
   getTotalsByCategory: (categoryId: CategoryId) => { usd: number; eur: number };
   getTotals: () => { usd: number; eur: number };
   getMonthlyTotals: (year: number, month: number) => { usd: number; eur: number };
@@ -36,6 +38,7 @@ interface ExpenseProviderProps {
 export const ExpenseProvider: React.FC<ExpenseProviderProps> = ({ children }) => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categoryLimits, setCategoryLimits] = useState<CategoryLimit[]>([]);
+  const [customCategories, setCustomCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
 
@@ -96,15 +99,42 @@ export const ExpenseProvider: React.FC<ExpenseProviderProps> = ({ children }) =>
     }
   };
 
+  // Fetch custom categories from database
+  const fetchCustomCategories = async () => {
+    if (!user?.email) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('custom_categories')
+        .select('*')
+        .eq('user_email', user.email)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      const mappedCategories: Category[] = (data || []).map(cat => ({
+        id: cat.category_id as CategoryId,
+        name: cat.name,
+        icon: cat.icon,
+        color: cat.color,
+      }));
+
+      setCustomCategories(mappedCategories);
+    } catch (error) {
+      console.error('Error fetching custom categories:', error);
+    }
+  };
+
   // Load data when user changes
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
       if (user?.email) {
-        await Promise.all([fetchExpenses(), fetchCategoryLimits()]);
+        await Promise.all([fetchExpenses(), fetchCategoryLimits(), fetchCustomCategories()]);
       } else {
         setExpenses([]);
         setCategoryLimits([]);
+        setCustomCategories([]);
       }
       setIsLoading(false);
     };
@@ -272,16 +302,45 @@ export const ExpenseProvider: React.FC<ExpenseProviderProps> = ({ children }) =>
     };
   };
 
+  const addCustomCategory = async (category: Category) => {
+    if (!user?.email) {
+      toast.error('Debes iniciar sesión para crear categorías');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('custom_categories')
+        .insert({
+          user_email: user.email,
+          category_id: category.id,
+          name: category.name,
+          icon: category.icon,
+          color: category.color,
+        });
+
+      if (error) throw error;
+
+      setCustomCategories(prev => [...prev, category]);
+      toast.success(`Categoría "${category.name}" creada correctamente`);
+    } catch (error) {
+      console.error('Error creating custom category:', error);
+      toast.error('Error al crear la categoría');
+    }
+  };
+
   return (
     <ExpenseContext.Provider
       value={{
         expenses,
         categoryLimits,
+        customCategories,
         isLoading,
         addExpense,
         deleteExpense,
         setCategoryLimit,
         removeCategoryLimit,
+        addCustomCategory,
         getTotalsByCategory,
         getTotals,
         getMonthlyTotals,

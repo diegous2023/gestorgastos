@@ -98,6 +98,39 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_categories: {
+        Row: {
+          category_id: string
+          color: string
+          created_at: string
+          icon: string
+          id: string
+          name: string
+          updated_at: string
+          user_email: string
+        }
+        Insert: {
+          category_id: string
+          color: string
+          created_at?: string
+          icon: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_email: string
+        }
+        Update: {
+          category_id?: string
+          color?: string
+          created_at?: string
+          icon?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_email?: string
+        }
+        Relationships: []
+      }
       expenses: {
         Row: {
           amount_eur: number | null

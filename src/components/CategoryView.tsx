@@ -11,7 +11,7 @@ import CategoryHistoryModal from './CategoryHistoryModal';
 import CreateCategoryModal from './CreateCategoryModal';
 
 const CategoryView: React.FC = () => {
-  const { getTotalsByCategory, categoryLimits, setCategoryLimit } = useExpenses();
+  const { getTotalsByCategory, categoryLimits, setCategoryLimit, customCategories, addCustomCategory } = useExpenses();
   const { toast } = useToast();
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | null>(null);
   const [limitCurrency, setLimitCurrency] = useState<Currency>('USD');
@@ -20,7 +20,6 @@ const CategoryView: React.FC = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [historyCategory, setHistoryCategory] = useState<CategoryId | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [customCategories, setCustomCategories] = useState<Category[]>([]);
 
   const allCategories = [...CATEGORIES, ...customCategories];
 
@@ -85,10 +84,6 @@ const CategoryView: React.FC = () => {
   const handleCategoryClick = (categoryId: CategoryId) => {
     setHistoryCategory(categoryId);
     setHistoryOpen(true);
-  };
-
-  const handleCreateCategory = (category: Category) => {
-    setCustomCategories(prev => [...prev, category]);
   };
 
   const currencies: { value: Currency; label: string }[] = [
@@ -260,7 +255,7 @@ const CategoryView: React.FC = () => {
 
         {/* Create Category Card */}
         <CreateCategoryModal 
-          onCreateCategory={handleCreateCategory}
+          onCreateCategory={addCustomCategory}
           existingCategories={allCategories.map(c => c.id)}
         />
       </div>
