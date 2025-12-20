@@ -19,6 +19,39 @@ export default defineConfig(({ mode }) => ({
       devOptions: {
         enabled: true,
       },
+      workbox: {
+        // Pre-cache all static assets for instant loading
+        globPatterns: ['**/*.{js,css,html,ico,png,jpg,jpeg,svg,woff,woff2}'],
+        // Runtime caching for API calls
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/xcjebvgcqxcjaghdijbe\.supabase\.co\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'supabase-cache',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24, // 24 hours
+              },
+              networkTimeoutSeconds: 10,
+            },
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+              },
+            },
+          },
+        ],
+        // Skip waiting to activate new service worker immediately
+        skipWaiting: true,
+        clientsClaim: true,
+      },
       manifest: {
         name: "Gestor de Gastos",
         short_name: "Gastos",
@@ -26,8 +59,10 @@ export default defineConfig(({ mode }) => ({
         start_url: "/",
         scope: "/",
         display: "standalone",
-        background_color: "#FAFAFA",
+        background_color: "#0a0a0b",
         theme_color: "#7C3AED",
+        orientation: "portrait",
+        categories: ["finance", "utilities"],
         icons: [
           {
             src: "/icon-192.png",
