@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
-import { Trash2, Pause, Play, Bell, Users, Lock, Sparkles, UserCircle } from 'lucide-react';
+import { Trash2, Pause, Play, Bell, Users, Lock, Sparkles, UserCircle, LogOut } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,11 +58,12 @@ interface PersonalizedNotification {
   created_at: string;
 }
 
-const ADMIN_PASSWORD = 'exitoso19397796';
-
 const Admin: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState('');
+  const { user, login, logout, isLoading: authLoading } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [activeTab, setActiveTab] = useState<'users' | 'notifications' | 'special' | 'personalized'>('users');
   
   // Users state
@@ -95,21 +97,50 @@ const Admin: React.FC = () => {
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; user: AuthorizedUser | null }>({ open: false, user: null });
   const [suspendDialog, setSuspendDialog] = useState<{ open: boolean; user: AuthorizedUser | null; action: 'suspend' | 'reactivate' }>({ open: false, user: null, action: 'suspend' });
 
+  // Check if user is admin when auth state changes
   useEffect(() => {
-    const adminAuth = sessionStorage.getItem('admin_authenticated');
-    if (adminAuth === 'true') {
-      setIsAuthenticated(true);
-    }
-  }, []);
+    const checkAdminStatus = async () => {
+      if (!user?.email) {
+        setIsAdmin(false);
+        setIsCheckingAdmin(false);
+        return;
+      }
 
+      try {
+        const { data, error } = await supabase
+          .from('admin_roles')
+          .select('role')
+          .eq('user_email', user.email)
+          .eq('role', 'admin')
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error checking admin status:', error);
+          setIsAdmin(false);
+        } else {
+          setIsAdmin(!!data);
+        }
+      } catch (err) {
+        console.error('Error checking admin:', err);
+        setIsAdmin(false);
+      }
+      setIsCheckingAdmin(false);
+    };
+
+    if (!authLoading) {
+      checkAdminStatus();
+    }
+  }, [user?.email, authLoading]);
+
+  // Fetch data when admin is confirmed
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAdmin && user?.email) {
       fetchUsers();
       fetchNotifications();
       fetchSpecialNotifications();
       fetchPersonalizedNotifications();
     }
-  }, [isAuthenticated]);
+  }, [isAdmin, user?.email]);
 
   const fetchUsers = async () => {
     const { data, error } = await supabase
@@ -155,15 +186,27 @@ const Admin: React.FC = () => {
     }
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      sessionStorage.setItem('admin_authenticated', 'true');
-      toast({ title: "Acceso concedido", description: "Bienvenido al panel de administrador" });
-    } else {
-      toast({ title: "Error", description: "Contraseña incorrecta", variant: "destructive" });
+    if (!loginEmail.trim()) {
+      toast({ title: "Error", description: "Ingresa tu correo", variant: "destructive" });
+      return;
     }
+
+    setIsLoggingIn(true);
+    const result = await login(loginEmail);
+    setIsLoggingIn(false);
+
+    if (!result.success) {
+      toast({ title: "Error", description: result.error, variant: "destructive" });
+    } else {
+      toast({ title: "Verificando permisos...", description: "Comprobando si eres administrador" });
+    }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    setIsAdmin(false);
   };
 
   const handleAddUser = async (e: React.FormEvent) => {
@@ -397,7 +440,22 @@ const Admin: React.FC = () => {
     }
   };
 
-  if (!isAuthenticated) {
+  // Loading state
+  if (authLoading || isCheckingAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="glass-card rounded-2xl p-8 w-full max-w-md text-center">
+          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <Lock className="w-8 h-8 text-primary" />
+          </div>
+          <p className="text-muted-foreground">Verificando acceso...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Not logged in - show login form
+  if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="glass-card rounded-2xl p-8 w-full max-w-md">
@@ -406,19 +464,23 @@ const Admin: React.FC = () => {
               <Lock className="w-8 h-8 text-primary" />
             </div>
             <h1 className="font-display text-2xl font-bold">Panel de Administrador</h1>
-            <p className="text-muted-foreground text-sm">Ingresa la contraseña para continuar</p>
+            <p className="text-muted-foreground text-sm">Ingresa tu correo de administrador</p>
           </div>
           
           <form onSubmit={handleLogin} className="space-y-4">
             <Input
-              type="password"
-              placeholder="Contraseña"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              type="email"
+              placeholder="admin@ejemplo.com"
+              value={loginEmail}
+              onChange={(e) => setLoginEmail(e.target.value)}
               className="h-12"
             />
-            <Button type="submit" className="w-full h-12 bg-gradient-to-r from-primary to-accent">
-              Ingresar
+            <Button 
+              type="submit" 
+              className="w-full h-12 bg-gradient-to-r from-primary to-accent"
+              disabled={isLoggingIn}
+            >
+              {isLoggingIn ? 'Verificando...' : 'Ingresar'}
             </Button>
           </form>
         </div>
@@ -426,18 +488,41 @@ const Admin: React.FC = () => {
     );
   }
 
+  // Logged in but not admin
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="glass-card rounded-2xl p-8 w-full max-w-md text-center">
+          <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+            <Lock className="w-8 h-8 text-destructive" />
+          </div>
+          <h1 className="font-display text-2xl font-bold mb-2">Acceso Denegado</h1>
+          <p className="text-muted-foreground text-sm mb-4">
+            El correo <strong>{user.email}</strong> no tiene permisos de administrador.
+          </p>
+          <Button variant="outline" onClick={handleLogout}>
+            <LogOut className="w-4 h-4 mr-2" />
+            Cerrar Sesión
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Admin authenticated - show admin panel
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="font-display text-2xl font-bold gradient-text">Panel de Administrador</h1>
+          <div>
+            <h1 className="font-display text-2xl font-bold gradient-text">Panel de Administrador</h1>
+            <p className="text-sm text-muted-foreground">{user.email}</p>
+          </div>
           <Button 
             variant="outline" 
-            onClick={() => {
-              sessionStorage.removeItem('admin_authenticated');
-              setIsAuthenticated(false);
-            }}
+            onClick={handleLogout}
           >
+            <LogOut className="w-4 h-4 mr-2" />
             Cerrar Sesión
           </Button>
         </div>
