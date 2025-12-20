@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import logo from '@/assets/logo.jpg';
 import { useAuth } from '@/context/AuthContext';
 import NotificationBell from './NotificationBell';
@@ -14,6 +14,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange }) => {
   const { user, logout } = useAuth();
+  const [swRegistration, setSwRegistration] = useState<ServiceWorkerRegistration | null>(null);
   
   const mainTabs = [
     { id: 'principal', label: 'Principal' },
@@ -21,9 +22,43 @@ const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange }) => {
     { id: 'categorias', label: 'Categorías' },
   ];
 
-  const handleUpdateApp = () => {
-    window.location.reload();
-    toast({ title: "App actualizada", description: "La aplicación se ha actualizado correctamente" });
+  // Listen for service worker updates
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then((registration) => {
+        setSwRegistration(registration);
+      });
+    }
+  }, []);
+
+  const handleUpdateApp = async () => {
+    try {
+      // Check for new service worker and skip waiting
+      if (swRegistration) {
+        await swRegistration.update();
+        
+        if (swRegistration.waiting) {
+          // Tell the waiting service worker to activate
+          swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+      }
+      
+      // Clear caches and reload
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map(name => caches.delete(name)));
+      }
+      
+      toast({ title: "Actualizando...", description: "La aplicación se está actualizando" });
+      
+      // Force reload from server
+      setTimeout(() => {
+        window.location.reload();
+      }, 300);
+    } catch (error) {
+      console.error('Error updating app:', error);
+      window.location.reload();
+    }
   };
 
   return (
