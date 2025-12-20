@@ -51,10 +51,11 @@ const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange }) => {
               variant="outline"
               size="sm"
               onClick={handleUpdateApp}
-              className="hidden sm:flex items-center gap-2"
+              className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3"
             >
-              <RefreshCw className="w-4 h-4" />
-              Actualizar App
+              <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Refrescar App</span>
+              <span className="sm:hidden">Refrescar</span>
             </Button>
             <NotificationBell />
             <Button variant="ghost" size="sm" onClick={logout}>
