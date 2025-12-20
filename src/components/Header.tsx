@@ -15,11 +15,10 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange }) => {
   const { user, logout } = useAuth();
   
-  const tabs = [
+  const mainTabs = [
     { id: 'principal', label: 'Principal' },
     { id: 'graficas', label: 'Gráficas' },
     { id: 'categorias', label: 'Categorías' },
-    { id: 'analisis', label: '¿En qué gasto más?' },
   ];
 
   const handleUpdateApp = () => {
@@ -64,28 +63,43 @@ const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange }) => {
           </div>
         </div>
 
-        <nav className="flex gap-2 overflow-x-auto pb-1">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => onTabChange(tab.id)}
-              className={
-                `
-                px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 whitespace-nowrap
-                ${activeTab === tab.id
-                  ? 'bg-gradient-to-r from-primary to-accent text-primary-foreground shadow-lg'
-                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                }
-              `
+        <nav className="flex flex-col gap-2">
+          {/* Main tabs row */}
+          <div className="flex gap-2">
+            {mainTabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => onTabChange(tab.id)}
+                className={`
+                  flex-1 px-3 py-2 rounded-lg font-medium text-sm transition-all duration-300 whitespace-nowrap
+                  ${activeTab === tab.id
+                    ? 'bg-gradient-to-r from-primary to-accent text-primary-foreground shadow-lg'
+                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                  }
+                `}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          
+          {/* Analysis tab - full width below */}
+          <button
+            onClick={() => onTabChange('analisis')}
+            className={`
+              w-full px-3 py-2 rounded-lg font-medium text-sm transition-all duration-300
+              ${activeTab === 'analisis'
+                ? 'bg-gradient-to-r from-primary to-accent text-primary-foreground shadow-lg'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
               }
-            >
-              {tab.label}
-            </button>
-          ))}
+            `}
+          >
+            ¿En qué gasto más?
+          </button>
         </nav>
 
         {/* Quote bar (queda fija porque el header es sticky) */}
-        <div className="mt-4">
+        <div className="mt-3">
           <FinanceQuotes />
         </div>
       </div>
