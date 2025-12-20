@@ -253,7 +253,7 @@ const CategoryView: React.FC = () => {
           );
         })}
 
-        {/* Create Category Card */}
+        {/* Create Category Card - Always visible after all categories */}
         <CreateCategoryModal 
           onCreateCategory={addCustomCategory}
           existingCategories={allCategories.map(c => c.id)}

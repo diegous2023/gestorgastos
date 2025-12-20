@@ -9,7 +9,8 @@ interface ExpenseContextType {
   categoryLimits: CategoryLimit[];
   customCategories: Category[];
   isLoading: boolean;
-  addExpense: (expense: Omit<Expense, 'id'>) => Promise<void>;
+  addExpense: (expense: Omit<Expense, 'id'>) => Promise<boolean>;
+  updateExpense: (id: string, expense: Omit<Expense, 'id'>) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   setCategoryLimit: (limit: CategoryLimit) => Promise<void>;
   removeCategoryLimit: (categoryId: CategoryId) => Promise<void>;
@@ -142,10 +143,10 @@ export const ExpenseProvider: React.FC<ExpenseProviderProps> = ({ children }) =>
     loadData();
   }, [user?.email]);
 
-  const addExpense = async (expense: Omit<Expense, 'id'>) => {
+  const addExpense = async (expense: Omit<Expense, 'id'>): Promise<boolean> => {
     if (!user?.email) {
       toast.error('Debes iniciar sesión para agregar gastos');
-      return;
+      return false;
     }
 
     try {
@@ -178,10 +179,55 @@ export const ExpenseProvider: React.FC<ExpenseProviderProps> = ({ children }) =>
       };
 
       setExpenses(prev => [newExpense, ...prev]);
-      toast.success('Gasto agregado correctamente');
+      return true;
     } catch (error) {
       console.error('Error adding expense:', error);
       toast.error('Error al agregar el gasto');
+      return false;
+    }
+  };
+
+  const updateExpense = async (id: string, expense: Omit<Expense, 'id'>) => {
+    if (!user?.email) {
+      toast.error('Debes iniciar sesión para editar gastos');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('expenses')
+        .update({
+          description: expense.description,
+          category: expense.category,
+          amount_usd: expense.amountUSD || null,
+          amount_eur: expense.amountEUR || null,
+          currency: expense.currency,
+          date: expense.date,
+          note: expense.note || null,
+        })
+        .eq('id', id)
+        .eq('user_email', user.email)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const updatedExpense: Expense = {
+        id: data.id,
+        description: data.description,
+        category: data.category as CategoryId,
+        amountUSD: data.amount_usd ? Number(data.amount_usd) : undefined,
+        amountEUR: data.amount_eur ? Number(data.amount_eur) : undefined,
+        currency: data.currency as Expense['currency'],
+        date: data.date,
+        note: data.note || undefined,
+      };
+
+      setExpenses(prev => prev.map(exp => exp.id === id ? updatedExpense : exp));
+      toast.success('Gasto actualizado correctamente');
+    } catch (error) {
+      console.error('Error updating expense:', error);
+      toast.error('Error al actualizar el gasto');
     }
   };
 
@@ -337,6 +383,7 @@ export const ExpenseProvider: React.FC<ExpenseProviderProps> = ({ children }) =>
         customCategories,
         isLoading,
         addExpense,
+        updateExpense,
         deleteExpense,
         setCategoryLimit,
         removeCategoryLimit,

@@ -33,10 +33,10 @@ const IndexContent: React.FC<{ activeTab: string; onTabChange: (tab: string) => 
     <div className="min-h-screen bg-background">
       <Header activeTab={activeTab} onTabChange={onTabChange} />
       
+      {/* Finance Quotes - Sticky at top */}
+      <FinanceQuotes />
+      
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-        {/* Finance Quotes - Always visible */}
-        <FinanceQuotes />
-
         {activeTab === 'principal' && (
           <>
             <TotalCards />
