@@ -1,11 +1,22 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, Heart } from 'lucide-react';
+import { CalendarIcon, Heart, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { useExpenses } from '@/context/ExpenseContext';
 import { CATEGORIES, CategoryId, Currency } from '@/types/expense';
 import { cn } from '@/lib/utils';
@@ -14,7 +25,7 @@ import ExpenseSuccessModal from './ExpenseSuccessModal';
 import CreateCategoryInline from './CreateCategoryInline';
 
 const ExpenseForm: React.FC = () => {
-  const { addExpense, customCategories, addCustomCategory } = useExpenses();
+  const { addExpense, customCategories, addCustomCategory, deleteCustomCategory } = useExpenses();
   const { toast } = useToast();
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<CategoryId | null>(null);
@@ -99,22 +110,63 @@ const ExpenseForm: React.FC = () => {
           <div>
             <p className="text-sm font-medium text-muted-foreground mb-2">Categoría</p>
             <div className="grid grid-cols-4 gap-2">
-              {allCategories.map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setCategory(cat.id)}
-                  className={cn(
-                    "flex flex-col items-center gap-1 p-2 rounded-lg transition-all duration-200",
-                    category === cat.id
-                      ? "bg-primary/20 border-2 border-primary"
-                      : "bg-secondary/50 border-2 border-transparent hover:bg-secondary"
-                  )}
-                >
-                  <span className="text-lg">{cat.icon}</span>
-                  <span className="text-xs font-medium truncate w-full text-center">{cat.name}</span>
-                </button>
-              ))}
+              {allCategories.map((cat) => {
+                const isCustomCategory = customCategories.some((c) => c.id === cat.id);
+
+                return (
+                  <div key={cat.id} className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setCategory(cat.id)}
+                      className={cn(
+                        "flex flex-col items-center gap-1 p-2 rounded-lg transition-all duration-200",
+                        category === cat.id
+                          ? "bg-primary/20 border-2 border-primary"
+                          : "bg-secondary/50 border-2 border-transparent hover:bg-secondary"
+                      )}
+                    >
+                      <span className="text-lg">{cat.icon}</span>
+                      <span className="text-xs font-medium truncate w-full text-center">{cat.name}</span>
+                    </button>
+
+                    {isCustomCategory && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute -top-1 -right-1 p-1.5 rounded-full bg-destructive/10 hover:bg-destructive/20 transition-colors"
+                            aria-label={`Eliminar categoría ${cat.name}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="bg-card border-border">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>¿Eliminar categoría?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              ¿Seguro que deseas eliminar "{cat.name}"? Esta acción no se puede deshacer.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                await deleteCustomCategory(cat.id);
+                                if (category === cat.id) setCategory(null);
+                              }}
+                            >
+                              Eliminar
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
+                );
+              })}
               {/* Create category button - always at the end */}
               <CreateCategoryInline
                 onCreateCategory={addCustomCategory}
