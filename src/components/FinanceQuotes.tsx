@@ -43,28 +43,24 @@ const FinanceQuotes: React.FC = () => {
   const currentQuote = FINANCE_QUOTES[currentQuoteIndex];
 
   return (
-    <div className="sticky top-0 z-40 -mx-4 px-4 py-3 bg-background/95 backdrop-blur-md border-b border-border/50">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 rounded-xl p-4 relative overflow-hidden shadow-lg border border-primary/20">
-          {/* Decorative gradient line */}
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-accent to-primary" />
-          
-          {/* Decorative background elements */}
-          <div className="absolute -right-4 -top-4 w-24 h-24 bg-primary/5 rounded-full blur-2xl" />
-          <div className="absolute -left-4 -bottom-4 w-20 h-20 bg-accent/5 rounded-full blur-2xl" />
-          
-          <div className="flex items-start gap-3 relative">
-            <div className="p-2.5 rounded-xl bg-primary/20 text-primary shadow-sm">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div className={`flex-1 transition-all duration-300 ${isAnimating ? 'opacity-0 translate-y-2' : 'opacity-100 translate-y-0'}`}>
-              <p className="text-sm italic text-foreground leading-relaxed font-medium">
-                "{currentQuote.quote}"
-              </p>
-              <p className="text-xs text-muted-foreground mt-2 font-semibold">
-                — {currentQuote.author}
-              </p>
-            </div>
+    <div className="w-full">
+      <div className="bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 rounded-xl p-4 relative overflow-hidden shadow-lg border border-primary/20">
+        {/* Decorative gradient line */}
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-accent to-primary" />
+
+        {/* Decorative background elements */}
+        <div className="absolute -right-4 -top-4 w-24 h-24 bg-primary/5 rounded-full blur-2xl" />
+        <div className="absolute -left-4 -bottom-4 w-20 h-20 bg-accent/5 rounded-full blur-2xl" />
+
+        <div className="flex items-start gap-3 relative">
+          <div className="p-2.5 rounded-xl bg-primary/20 text-primary shadow-sm">
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <div className={`flex-1 transition-all duration-300 ${isAnimating ? 'opacity-0 translate-y-2' : 'opacity-100 translate-y-0'}`}>
+            <p className="text-sm italic text-foreground leading-relaxed font-medium">
+              "{currentQuote.quote}"
+            </p>
+            <p className="text-xs text-muted-foreground mt-2 font-semibold">— {currentQuote.author}</p>
           </div>
         </div>
       </div>
