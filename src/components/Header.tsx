@@ -76,7 +76,7 @@ const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange }) => {
           </div>
           <div className="min-w-0 flex-1">
             <h1 className="font-display text-lg font-bold gradient-text truncate">Bienvenido, {user?.name || 'Usuario'}</h1>
-            <p className="text-xs text-muted-foreground truncate">Controla tu dinero o él te controlará a ti 🚀</p>
+            <p className="text-xs text-muted-foreground truncate"><strong>Controla tu dinero o él te controlará a ti</strong> 🚀</p>
           </div>
         </div>
 

@@ -5,10 +5,13 @@ import { useExpenses } from '@/context/ExpenseContext';
 import { CATEGORIES, CategoryId } from '@/types/expense';
 
 const SpendingAnalysis: React.FC = () => {
-  const { expenses, getTotalsByCategory } = useExpenses();
+  const { expenses, getTotalsByCategory, customCategories } = useExpenses();
+
+  // Combine default categories with custom categories
+  const allCategories = useMemo(() => [...CATEGORIES, ...customCategories], [customCategories]);
 
   const chartData = useMemo(() => {
-    const data = CATEGORIES.map(cat => {
+    const data = allCategories.map(cat => {
       const totals = getTotalsByCategory(cat.id);
       return {
         id: cat.id,
@@ -22,7 +25,7 @@ const SpendingAnalysis: React.FC = () => {
     }).filter(item => item.total > 0);
 
     return data.sort((a, b) => b.total - a.total);
-  }, [expenses, getTotalsByCategory]);
+  }, [expenses, getTotalsByCategory, allCategories]);
 
   const topCategories = chartData.slice(0, 5);
   const totalSpentUSD = chartData.reduce((sum, item) => sum + item.usd, 0);
