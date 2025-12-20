@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Target } from 'lucide-react';
+import { Target, Trash2 } from 'lucide-react';
 import { useExpenses } from '@/context/ExpenseContext';
 import { CATEGORIES, CategoryId, Currency, Category } from '@/types/expense';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -11,7 +12,7 @@ import CategoryHistoryModal from './CategoryHistoryModal';
 import CreateCategoryModal from './CreateCategoryModal';
 
 const CategoryView: React.FC = () => {
-  const { getTotalsByCategory, categoryLimits, setCategoryLimit, customCategories, addCustomCategory } = useExpenses();
+  const { getTotalsByCategory, categoryLimits, setCategoryLimit, customCategories, addCustomCategory, deleteCustomCategory } = useExpenses();
   const { toast } = useToast();
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | null>(null);
   const [limitCurrency, setLimitCurrency] = useState<Currency>('USD');
@@ -183,6 +184,7 @@ const CategoryView: React.FC = () => {
         {allCategories.map((category, index) => {
           const totals = getTotalsByCategory(category.id);
           const limit = getLimit(category.id);
+          const isCustomCategory = customCategories.some(c => c.id === category.id);
           
           return (
             <div 
@@ -193,10 +195,44 @@ const CategoryView: React.FC = () => {
             >
               <div className="flex items-center gap-3 mb-3">
                 <span className="text-3xl">{category.icon}</span>
-                <div>
+                <div className="flex-1">
                   <h3 className="font-semibold">{category.name}</h3>
                   <p className="text-sm text-muted-foreground">Toca para ver historial</p>
                 </div>
+                {isCustomCategory && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={(e) => e.stopPropagation()}
+                        className="p-2 rounded-lg bg-destructive/10 hover:bg-destructive/20 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="bg-card border-border">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar categoría?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          ¿Estás seguro de que deseas eliminar la categoría "{category.name}"? 
+                          Esta acción no se puede deshacer. Los gastos asociados a esta categoría no se eliminarán.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteCustomCategory(category.id);
+                          }}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Eliminar
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
               </div>
 
               <div className="space-y-2">

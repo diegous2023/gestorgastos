@@ -3,15 +3,11 @@ import { Plus } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import { Category, CategoryId } from '@/types/expense';
 import { cn } from '@/lib/utils';
-
-const EMOJI_OPTIONS = [
-  '💼', '🎯', '🏋️', '✈️', '🎁', '💡', '🎨', '🐕', '🌱', '💊',
-  '🎓', '🎪', '🍿', '🎵', '📷', '⚽', '🏖️', '☕', '🍺', '🎂',
-  '💇', '🛒', '🔧', '📞', '💻', '🎮', '📺', '🚌', '⛽', '🏥'
-];
+import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react';
 
 interface CreateCategoryInlineProps {
   onCreateCategory: (category: Category) => Promise<void>;
@@ -31,6 +27,12 @@ const CreateCategoryInline: React.FC<CreateCategoryInlineProps> = ({
   const [name, setName] = useState('');
   const [selectedEmoji, setSelectedEmoji] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+
+  const handleEmojiClick = (emojiData: EmojiClickData) => {
+    setSelectedEmoji(emojiData.emoji);
+    setEmojiPickerOpen(false);
+  };
 
   const handleCreate = async () => {
     if (!name.trim()) {
@@ -88,7 +90,7 @@ const CreateCategoryInline: React.FC<CreateCategoryInlineProps> = ({
           <span className="text-xs font-medium">Crear</span>
         </button>
       </DialogTrigger>
-      <DialogContent className="bg-card border-border max-w-[90vw] sm:max-w-md">
+      <DialogContent className="bg-card border-border max-w-[90vw] sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display">Nueva Categoría</DialogTitle>
         </DialogHeader>
@@ -110,23 +112,38 @@ const CreateCategoryInline: React.FC<CreateCategoryInlineProps> = ({
             <label className="text-sm font-medium text-muted-foreground mb-2 block">
               Emoji
             </label>
-            <div className="grid grid-cols-6 gap-2 max-h-[150px] overflow-y-auto p-2 bg-secondary/30 rounded-lg">
-              {EMOJI_OPTIONS.map((emoji) => (
+            <Popover open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
+              <PopoverTrigger asChild>
                 <button
-                  key={emoji}
                   type="button"
-                  onClick={() => setSelectedEmoji(emoji)}
                   className={cn(
-                    "text-xl p-2 rounded-lg transition-all duration-200 hover:scale-110",
-                    selectedEmoji === emoji 
-                      ? "bg-primary/20 ring-2 ring-primary scale-110" 
-                      : "hover:bg-secondary"
+                    "w-full p-3 rounded-lg border-2 transition-all duration-200 flex items-center justify-center gap-2",
+                    selectedEmoji
+                      ? "bg-primary/10 border-primary"
+                      : "bg-secondary/50 border-border hover:border-primary/50"
                   )}
                 >
-                  {emoji}
+                  {selectedEmoji ? (
+                    <>
+                      <span className="text-3xl">{selectedEmoji}</span>
+                      <span className="text-sm text-muted-foreground">Toca para cambiar</span>
+                    </>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">Toca para elegir emoji</span>
+                  )}
                 </button>
-              ))}
-            </div>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0 border-0" align="center" side="bottom">
+                <EmojiPicker
+                  onEmojiClick={handleEmojiClick}
+                  theme={Theme.AUTO}
+                  width="100%"
+                  height={350}
+                  searchPlaceHolder="Buscar emoji..."
+                  previewConfig={{ showPreview: false }}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
 
           {(name || selectedEmoji) && (

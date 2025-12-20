@@ -15,6 +15,7 @@ interface ExpenseContextType {
   setCategoryLimit: (limit: CategoryLimit) => Promise<void>;
   removeCategoryLimit: (categoryId: CategoryId) => Promise<void>;
   addCustomCategory: (category: Category) => Promise<void>;
+  deleteCustomCategory: (categoryId: CategoryId) => Promise<void>;
   getTotalsByCategory: (categoryId: CategoryId) => { usd: number; eur: number };
   getTotals: () => { usd: number; eur: number };
   getMonthlyTotals: (year: number, month: number) => { usd: number; eur: number };
@@ -375,6 +376,29 @@ export const ExpenseProvider: React.FC<ExpenseProviderProps> = ({ children }) =>
     }
   };
 
+  const deleteCustomCategory = async (categoryId: CategoryId) => {
+    if (!user?.email) {
+      toast.error('Debes iniciar sesión para eliminar categorías');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('custom_categories')
+        .delete()
+        .eq('user_email', user.email)
+        .eq('category_id', categoryId);
+
+      if (error) throw error;
+
+      setCustomCategories(prev => prev.filter(cat => cat.id !== categoryId));
+      toast.success('Categoría eliminada correctamente');
+    } catch (error) {
+      console.error('Error deleting custom category:', error);
+      toast.error('Error al eliminar la categoría');
+    }
+  };
+
   return (
     <ExpenseContext.Provider
       value={{
@@ -388,6 +412,7 @@ export const ExpenseProvider: React.FC<ExpenseProviderProps> = ({ children }) =>
         setCategoryLimit,
         removeCategoryLimit,
         addCustomCategory,
+        deleteCustomCategory,
         getTotalsByCategory,
         getTotals,
         getMonthlyTotals,
