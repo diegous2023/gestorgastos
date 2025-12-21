@@ -27,6 +27,11 @@ interface AuthorizedUser {
   created_at: string;
 }
 
+interface UserSession {
+  user_email: string;
+  logged_in_at: string;
+}
+
 interface Notification {
   id: string;
   title: string | null;
@@ -70,6 +75,7 @@ const Admin: React.FC = () => {
   
   // Users state
   const [users, setUsers] = useState<AuthorizedUser[]>([]);
+  const [userSessions, setUserSessions] = useState<Record<string, string>>({});
   const [newEmail, setNewEmail] = useState('');
   const [newName, setNewName] = useState('');
   
@@ -115,6 +121,7 @@ const Admin: React.FC = () => {
   useEffect(() => {
     if (isAuthenticated) {
       fetchUsers();
+      fetchUserSessions();
       fetchNotifications();
       fetchSpecialNotifications();
       fetchPersonalizedNotifications();
@@ -127,6 +134,49 @@ const Admin: React.FC = () => {
       if (data) setUsers(data);
     } catch (error) {
       console.error('Error fetching users:', error);
+    }
+  };
+
+  const fetchUserSessions = async () => {
+    try {
+      const data: UserSession[] = await adminOperation('get_user_sessions');
+      if (data) {
+        // Create a map of email -> most recent login
+        const sessionsMap: Record<string, string> = {};
+        data.forEach((session) => {
+          if (!sessionsMap[session.user_email]) {
+            sessionsMap[session.user_email] = session.logged_in_at;
+          }
+        });
+        setUserSessions(sessionsMap);
+      }
+    } catch (error) {
+      console.error('Error fetching user sessions:', error);
+    }
+  };
+
+  const formatLastSession = (dateString: string | undefined): string => {
+    if (!dateString) return 'Sin registro de sesión';
+    
+    const sessionDate = new Date(dateString);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const sessionDay = new Date(sessionDate.getFullYear(), sessionDate.getMonth(), sessionDate.getDate());
+    
+    const timeStr = sessionDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    
+    if (sessionDay.getTime() === today.getTime()) {
+      return `Última sesión: Hoy a las ${timeStr}`;
+    } else if (sessionDay.getTime() === yesterday.getTime()) {
+      return `Última sesión: Ayer a las ${timeStr}`;
+    } else {
+      const dayName = sessionDate.toLocaleDateString('es-ES', { weekday: 'long' });
+      const dayNum = sessionDate.getDate();
+      const monthName = sessionDate.toLocaleDateString('es-ES', { month: 'long' });
+      const capitalizedDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+      return `Última sesión: ${capitalizedDay} ${dayNum} de ${monthName} a las ${timeStr}`;
     }
   };
 
@@ -564,6 +614,9 @@ const Admin: React.FC = () => {
                     <div>
                       <p className="font-medium">{user.name}</p>
                       <p className="text-sm text-muted-foreground">{user.email}</p>
+                      <p className="text-xs text-muted-foreground/70 mt-0.5">
+                        {formatLastSession(userSessions[user.email])}
+                      </p>
                       {user.status === 'suspended' && (
                         <span className="text-xs text-destructive font-medium">SUSPENDIDO</span>
                       )}

@@ -333,6 +333,24 @@ export type Database = {
         }
         Relationships: []
       }
+      user_sessions: {
+        Row: {
+          id: string
+          logged_in_at: string
+          user_email: string
+        }
+        Insert: {
+          id?: string
+          logged_in_at?: string
+          user_email: string
+        }
+        Update: {
+          id?: string
+          logged_in_at?: string
+          user_email?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
