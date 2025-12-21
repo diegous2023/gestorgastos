@@ -61,8 +61,9 @@ interface PersonalizedNotification {
 }
 
 const Admin: React.FC = () => {
-  const { user, isLoading: authLoading } = useAuth();
+  const { isLoading: authLoading } = useAuth();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [activeTab, setActiveTab] = useState<'users' | 'notifications' | 'special' | 'personalized'>('users');
@@ -100,6 +101,16 @@ const Admin: React.FC = () => {
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; user: AuthorizedUser | null }>({ open: false, user: null });
   const [suspendDialog, setSuspendDialog] = useState<{ open: boolean; user: AuthorizedUser | null; action: 'suspend' | 'reactivate' }>({ open: false, user: null, action: 'suspend' });
 
+  // Helper function for admin operations
+  const adminOperation = async (operation: string, data?: Record<string, unknown>) => {
+    const { data: result, error } = await supabase.functions.invoke('admin-operations', {
+      body: { password: adminPassword, operation, data }
+    });
+    if (error) throw error;
+    if (!result?.success) throw new Error(result?.error || 'Operation failed');
+    return result.data;
+  };
+
   // Fetch data when authenticated
   useEffect(() => {
     if (isAuthenticated) {
@@ -111,46 +122,38 @@ const Admin: React.FC = () => {
   }, [isAuthenticated]);
 
   const fetchUsers = async () => {
-    const { data, error } = await supabase
-      .from('authorized_users')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (!error && data) {
-      setUsers(data);
+    try {
+      const data = await adminOperation('get_users');
+      if (data) setUsers(data);
+    } catch (error) {
+      console.error('Error fetching users:', error);
     }
   };
 
   const fetchNotifications = async () => {
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (!error && data) {
-      setNotifications(data);
+    try {
+      const data = await adminOperation('get_notifications');
+      if (data) setNotifications(data);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
     }
   };
 
   const fetchSpecialNotifications = async () => {
-    const { data, error } = await supabase
-      .from('special_notifications')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (!error && data) {
-      setSpecialNotifications(data);
+    try {
+      const data = await adminOperation('get_special_notifications');
+      if (data) setSpecialNotifications(data);
+    } catch (error) {
+      console.error('Error fetching special notifications:', error);
     }
   };
 
   const fetchPersonalizedNotifications = async () => {
-    const { data, error } = await supabase
-      .from('user_personalized_notifications')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (!error && data) {
-      setPersonalizedNotifications(data);
+    try {
+      const data = await adminOperation('get_personalized_notifications');
+      if (data) setPersonalizedNotifications(data);
+    } catch (error) {
+      console.error('Error fetching personalized notifications:', error);
     }
   };
 
@@ -171,6 +174,7 @@ const Admin: React.FC = () => {
       if (error) {
         toast({ title: "Error", description: "Error de conexión", variant: "destructive" });
       } else if (data?.success) {
+        setAdminPassword(loginPassword);
         setIsAuthenticated(true);
         toast({ title: "Bienvenido", description: "Acceso concedido al panel de administrador" });
       } else {
@@ -185,6 +189,7 @@ const Admin: React.FC = () => {
 
   const handleLogout = () => {
     setIsAuthenticated(false);
+    setAdminPassword('');
     setLoginPassword('');
   };
 
@@ -195,41 +200,32 @@ const Admin: React.FC = () => {
       return;
     }
 
-    const { error } = await supabase
-      .from('authorized_users')
-      .insert({ email: newEmail.toLowerCase().trim(), name: newName.trim() });
-
-    if (error) {
-      if (error.code === '23505') {
+    try {
+      await adminOperation('add_user', { email: newEmail.toLowerCase().trim(), name: newName.trim() });
+      setNewEmail('');
+      setNewName('');
+      fetchUsers();
+      toast({ title: "Éxito", description: "Usuario agregado correctamente" });
+    } catch (error: any) {
+      if (error.message?.includes('23505') || error.code === '23505') {
         toast({ title: "Error", description: "Este correo ya está registrado", variant: "destructive" });
       } else {
         toast({ title: "Error", description: "No se pudo agregar el usuario", variant: "destructive" });
       }
-      return;
     }
-
-    setNewEmail('');
-    setNewName('');
-    fetchUsers();
-    toast({ title: "Éxito", description: "Usuario agregado correctamente" });
   };
 
   const handleDeleteUser = async () => {
     if (!deleteDialog.user) return;
     
-    const { error } = await supabase
-      .from('authorized_users')
-      .delete()
-      .eq('id', deleteDialog.user.id);
-
-    if (error) {
+    try {
+      await adminOperation('delete_user', { id: deleteDialog.user.id });
+      setDeleteDialog({ open: false, user: null });
+      fetchUsers();
+      toast({ title: "Éxito", description: "Usuario eliminado" });
+    } catch (error) {
       toast({ title: "Error", description: "No se pudo eliminar el usuario", variant: "destructive" });
-      return;
     }
-
-    setDeleteDialog({ open: false, user: null });
-    fetchUsers();
-    toast({ title: "Éxito", description: "Usuario eliminado" });
   };
 
   const handleToggleStatus = async () => {
@@ -237,22 +233,17 @@ const Admin: React.FC = () => {
     
     const newStatus = suspendDialog.action === 'suspend' ? 'suspended' : 'active';
     
-    const { error } = await supabase
-      .from('authorized_users')
-      .update({ status: newStatus })
-      .eq('id', suspendDialog.user.id);
-
-    if (error) {
+    try {
+      await adminOperation('update_user_status', { id: suspendDialog.user.id, status: newStatus });
+      setSuspendDialog({ open: false, user: null, action: 'suspend' });
+      fetchUsers();
+      toast({ 
+        title: "Éxito", 
+        description: newStatus === 'suspended' ? 'Usuario suspendido' : 'Usuario reactivado' 
+      });
+    } catch (error) {
       toast({ title: "Error", description: "No se pudo actualizar el estado", variant: "destructive" });
-      return;
     }
-
-    setSuspendDialog({ open: false, user: null, action: 'suspend' });
-    fetchUsers();
-    toast({ 
-      title: "Éxito", 
-      description: newStatus === 'suspended' ? 'Usuario suspendido' : 'Usuario reactivado' 
-    });
   };
 
   const handleAddNotification = async (e: React.FormEvent) => {
@@ -262,33 +253,27 @@ const Admin: React.FC = () => {
       return;
     }
 
-    const { error } = await supabase
-      .from('notifications')
-      .insert({ 
+    try {
+      await adminOperation('add_notification', { 
         title: newNotificationTitle.trim() || null,
         message: newNotificationMessage.trim() 
       });
-
-    if (error) {
+      setNewNotificationTitle('');
+      setNewNotificationMessage('');
+      fetchNotifications();
+      toast({ title: "Éxito", description: "Notificación enviada" });
+    } catch (error) {
       toast({ title: "Error", description: "No se pudo crear la notificación", variant: "destructive" });
-      return;
     }
-
-    setNewNotificationTitle('');
-    setNewNotificationMessage('');
-    fetchNotifications();
-    toast({ title: "Éxito", description: "Notificación enviada" });
   };
 
   const handleDeleteNotification = async (id: string) => {
-    const { error } = await supabase
-      .from('notifications')
-      .delete()
-      .eq('id', id);
-
-    if (!error) {
+    try {
+      await adminOperation('delete_notification', { id });
       fetchNotifications();
       toast({ title: "Éxito", description: "Notificación eliminada" });
+    } catch (error) {
+      toast({ title: "Error", description: "No se pudo eliminar la notificación", variant: "destructive" });
     }
   };
 
@@ -299,26 +284,21 @@ const Admin: React.FC = () => {
       return;
     }
 
-    const { error } = await supabase
-      .from('special_notifications')
-      .insert({ 
+    try {
+      await adminOperation('add_special_notification', { 
         title: newSpecialTitle.trim(),
         description: newSpecialDescription.trim(),
         button1_text: newSpecialButton1.trim(),
         button2_text: newSpecialButtonCount === 2 ? newSpecialButton2.trim() : '',
         dismiss_button: newSpecialButtonCount === 1 ? 1 : newSpecialDismissButton,
-        button_count: newSpecialButtonCount,
-        is_active: true
+        button_count: newSpecialButtonCount
       });
-
-    if (error) {
+      resetSpecialForm();
+      fetchSpecialNotifications();
+      toast({ title: "Éxito", description: "Notificación especial creada" });
+    } catch (error) {
       toast({ title: "Error", description: "No se pudo crear la notificación especial", variant: "destructive" });
-      return;
     }
-
-    resetSpecialForm();
-    fetchSpecialNotifications();
-    toast({ title: "Éxito", description: "Notificación especial creada" });
   };
 
   const resetSpecialForm = () => {
@@ -348,49 +328,41 @@ const Admin: React.FC = () => {
       return;
     }
 
-    const { error } = await supabase
-      .from('special_notifications')
-      .update({ 
+    try {
+      await adminOperation('update_special_notification', { 
+        id: editingSpecial.id,
         title: newSpecialTitle.trim(),
         description: newSpecialDescription.trim(),
         button1_text: newSpecialButton1.trim(),
         button2_text: newSpecialButtonCount === 2 ? newSpecialButton2.trim() : '',
         dismiss_button: newSpecialButtonCount === 1 ? 1 : newSpecialDismissButton,
         button_count: newSpecialButtonCount
-      })
-      .eq('id', editingSpecial.id);
-
-    if (error) {
+      });
+      resetSpecialForm();
+      fetchSpecialNotifications();
+      toast({ title: "Éxito", description: "Notificación actualizada" });
+    } catch (error) {
       toast({ title: "Error", description: "No se pudo actualizar la notificación", variant: "destructive" });
-      return;
     }
-
-    resetSpecialForm();
-    fetchSpecialNotifications();
-    toast({ title: "Éxito", description: "Notificación actualizada" });
   };
 
   const handleToggleSpecialNotification = async (id: string, isActive: boolean) => {
-    const { error } = await supabase
-      .from('special_notifications')
-      .update({ is_active: !isActive })
-      .eq('id', id);
-
-    if (!error) {
+    try {
+      await adminOperation('toggle_special_notification', { id, is_active: !isActive });
       fetchSpecialNotifications();
       toast({ title: "Éxito", description: isActive ? "Notificación desactivada" : "Notificación activada" });
+    } catch (error) {
+      toast({ title: "Error", description: "No se pudo actualizar la notificación", variant: "destructive" });
     }
   };
 
   const handleDeleteSpecialNotification = async (id: string) => {
-    const { error } = await supabase
-      .from('special_notifications')
-      .delete()
-      .eq('id', id);
-
-    if (!error) {
+    try {
+      await adminOperation('delete_special_notification', { id });
       fetchSpecialNotifications();
       toast({ title: "Éxito", description: "Notificación especial eliminada" });
+    } catch (error) {
+      toast({ title: "Error", description: "No se pudo eliminar la notificación", variant: "destructive" });
     }
   };
 
@@ -401,67 +373,55 @@ const Admin: React.FC = () => {
       return;
     }
 
-    const { error } = await supabase
-      .from('user_personalized_notifications')
-      .insert({ 
+    try {
+      await adminOperation('add_personalized_notification', { 
         user_email: newPersonalizedEmail.toLowerCase().trim(),
         title: newPersonalizedTitle.trim(),
         description: newPersonalizedDescription.trim(),
         button1_text: newPersonalizedButton1.trim(),
         button2_text: newPersonalizedButton2.trim(),
-        dismiss_button: newPersonalizedDismissButton,
-        is_active: true,
-        is_dismissed: false
+        dismiss_button: newPersonalizedDismissButton
       });
-
-    if (error) {
+      setNewPersonalizedEmail('');
+      setNewPersonalizedTitle('');
+      setNewPersonalizedDescription('');
+      setNewPersonalizedButton1('Aceptar');
+      setNewPersonalizedButton2('Entendido');
+      setNewPersonalizedDismissButton(2);
+      fetchPersonalizedNotifications();
+      toast({ title: "Éxito", description: "Notificación personalizada creada" });
+    } catch (error) {
       toast({ title: "Error", description: "No se pudo crear la notificación personalizada", variant: "destructive" });
-      return;
     }
-
-    setNewPersonalizedEmail('');
-    setNewPersonalizedTitle('');
-    setNewPersonalizedDescription('');
-    setNewPersonalizedButton1('Aceptar');
-    setNewPersonalizedButton2('Entendido');
-    setNewPersonalizedDismissButton(2);
-    fetchPersonalizedNotifications();
-    toast({ title: "Éxito", description: "Notificación personalizada creada" });
   };
 
   const handleTogglePersonalizedNotification = async (id: string, isActive: boolean) => {
-    const { error } = await supabase
-      .from('user_personalized_notifications')
-      .update({ is_active: !isActive, is_dismissed: false })
-      .eq('id', id);
-
-    if (!error) {
+    try {
+      await adminOperation('toggle_personalized_notification', { id, is_active: !isActive });
       fetchPersonalizedNotifications();
       toast({ title: "Éxito", description: isActive ? "Notificación desactivada" : "Notificación activada" });
+    } catch (error) {
+      toast({ title: "Error", description: "No se pudo actualizar la notificación", variant: "destructive" });
     }
   };
 
   const handleResetPersonalizedDismissal = async (id: string) => {
-    const { error } = await supabase
-      .from('user_personalized_notifications')
-      .update({ is_dismissed: false })
-      .eq('id', id);
-
-    if (!error) {
+    try {
+      await adminOperation('reset_personalized_dismissal', { id });
       fetchPersonalizedNotifications();
       toast({ title: "Éxito", description: "Notificación reiniciada - volverá a aparecer al usuario" });
+    } catch (error) {
+      toast({ title: "Error", description: "No se pudo reiniciar la notificación", variant: "destructive" });
     }
   };
 
   const handleDeletePersonalizedNotification = async (id: string) => {
-    const { error } = await supabase
-      .from('user_personalized_notifications')
-      .delete()
-      .eq('id', id);
-
-    if (!error) {
+    try {
+      await adminOperation('delete_personalized_notification', { id });
       fetchPersonalizedNotifications();
       toast({ title: "Éxito", description: "Notificación personalizada eliminada" });
+    } catch (error) {
+      toast({ title: "Error", description: "No se pudo eliminar la notificación", variant: "destructive" });
     }
   };
 
