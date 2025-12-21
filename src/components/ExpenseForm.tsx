@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { format } from 'date-fns';
+import React, { useState, useEffect } from 'react';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CalendarIcon, Heart, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,14 +18,15 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useExpenses } from '@/context/ExpenseContext';
-import { CATEGORIES, CategoryId, Currency } from '@/types/expense';
+import { CATEGORIES, CategoryId, Currency, Category } from '@/types/expense';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import ExpenseSuccessModal from './ExpenseSuccessModal';
 import CreateCategoryInline from './CreateCategoryInline';
+import CategoryLimitAlert from './CategoryLimitAlert';
 
 const ExpenseForm: React.FC = () => {
-  const { addExpense, customCategories, addCustomCategory, deleteCustomCategory } = useExpenses();
+  const { addExpense, customCategories, addCustomCategory, deleteCustomCategory, categoryLimits, expenses } = useExpenses();
   const { toast } = useToast();
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<CategoryId | null>(null);
@@ -35,6 +36,16 @@ const ExpenseForm: React.FC = () => {
   const [date, setDate] = useState<Date>(new Date());
   const [note, setNote] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  
+  // Limit alert state
+  const [showLimitAlert, setShowLimitAlert] = useState(false);
+  const [limitAlertData, setLimitAlertData] = useState<{
+    categoryName: string;
+    categoryIcon: string;
+    status: 'warning' | 'danger';
+    percentageUsed: number;
+  } | null>(null);
+  const [dismissedLimits, setDismissedLimits] = useState<Set<CategoryId>>(new Set());
 
   const allCategories = [...CATEGORIES, ...customCategories];
 
@@ -43,6 +54,82 @@ const ExpenseForm: React.FC = () => {
     { value: 'EUR', label: 'EUR' },
     { value: 'BOTH', label: 'USD + EUR' },
   ];
+
+  // Calculate current month spending for a category
+  const getCategoryMonthlySpending = (categoryId: CategoryId) => {
+    const now = new Date();
+    const monthStart = format(startOfMonth(now), 'yyyy-MM-dd');
+    const monthEnd = format(endOfMonth(now), 'yyyy-MM-dd');
+    
+    const monthlyExpenses = expenses.filter(
+      exp => exp.category === categoryId && exp.date >= monthStart && exp.date <= monthEnd
+    );
+    
+    const totalUSD = monthlyExpenses.reduce((sum, exp) => sum + (exp.amountUSD || 0), 0);
+    const totalEUR = monthlyExpenses.reduce((sum, exp) => sum + (exp.amountEUR || 0), 0);
+    
+    return { usd: totalUSD, eur: totalEUR };
+  };
+
+  // Check limit status for a category
+  const checkCategoryLimitStatus = (categoryId: CategoryId): { status: 'ok' | 'warning' | 'danger'; percentage: number } | null => {
+    const limit = categoryLimits.find(l => l.categoryId === categoryId);
+    if (!limit) return null;
+    
+    const spending = getCategoryMonthlySpending(categoryId);
+    
+    let percentage = 0;
+    
+    if (limit.currency === 'USD' && limit.limitUSD && limit.limitUSD > 0) {
+      percentage = (spending.usd / limit.limitUSD) * 100;
+    } else if (limit.currency === 'EUR' && limit.limitEUR && limit.limitEUR > 0) {
+      percentage = (spending.eur / limit.limitEUR) * 100;
+    } else if (limit.currency === 'BOTH') {
+      const usdPercentage = limit.limitUSD && limit.limitUSD > 0 ? (spending.usd / limit.limitUSD) * 100 : 0;
+      const eurPercentage = limit.limitEUR && limit.limitEUR > 0 ? (spending.eur / limit.limitEUR) * 100 : 0;
+      percentage = Math.max(usdPercentage, eurPercentage);
+    }
+    
+    if (percentage >= 100) {
+      return { status: 'danger', percentage };
+    } else if (percentage >= 75) {
+      return { status: 'warning', percentage };
+    }
+    
+    return { status: 'ok', percentage };
+  };
+
+  // Handle category selection with limit check
+  const handleCategorySelect = (cat: Category) => {
+    setCategory(cat.id);
+    
+    // Check if already dismissed
+    if (dismissedLimits.has(cat.id)) return;
+    
+    const limitStatus = checkCategoryLimitStatus(cat.id);
+    
+    if (limitStatus && (limitStatus.status === 'warning' || limitStatus.status === 'danger')) {
+      setLimitAlertData({
+        categoryName: cat.name,
+        categoryIcon: cat.icon,
+        status: limitStatus.status,
+        percentageUsed: limitStatus.percentage,
+      });
+      setShowLimitAlert(true);
+    }
+  };
+
+  const handleLimitAlertClose = () => {
+    setShowLimitAlert(false);
+    if (category) {
+      setDismissedLimits(prev => new Set(prev).add(category));
+    }
+  };
+
+  // Reset dismissed limits when categoryLimits change (user resets limit)
+  useEffect(() => {
+    setDismissedLimits(new Set());
+  }, [categoryLimits]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,7 +204,7 @@ const ExpenseForm: React.FC = () => {
                   <div key={cat.id} className="relative">
                     <button
                       type="button"
-                      onClick={() => setCategory(cat.id)}
+                      onClick={() => handleCategorySelect(cat)}
                       className={cn(
                         "flex flex-col items-center gap-1 p-2 rounded-lg transition-all duration-200",
                         category === cat.id
@@ -259,6 +346,17 @@ const ExpenseForm: React.FC = () => {
         isOpen={showSuccessModal} 
         onClose={() => setShowSuccessModal(false)} 
       />
+
+      {limitAlertData && (
+        <CategoryLimitAlert
+          isOpen={showLimitAlert}
+          onClose={handleLimitAlertClose}
+          categoryName={limitAlertData.categoryName}
+          categoryIcon={limitAlertData.categoryIcon}
+          status={limitAlertData.status}
+          percentageUsed={limitAlertData.percentageUsed}
+        />
+      )}
     </>
   );
 };
