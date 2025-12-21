@@ -40,6 +40,13 @@ serve(async (req) => {
           .order('created_at', { ascending: false });
         break;
 
+      case 'get_user_sessions':
+        result = await supabase
+          .from('user_sessions')
+          .select('user_email, logged_in_at')
+          .order('logged_in_at', { ascending: false });
+        break;
+
       case 'add_user':
         result = await supabase
           .from('authorized_users')

@@ -91,6 +91,11 @@ serve(async (req) => {
       )
     }
 
+    // Record login session
+    await supabaseAdmin
+      .from('user_sessions')
+      .insert({ user_email: authorizedUser.email })
+
     return new Response(
       JSON.stringify({ 
         success: true, 
