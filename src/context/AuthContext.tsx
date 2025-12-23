@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
 
@@ -7,15 +7,28 @@ interface AuthUser {
   name: string;
 }
 
+interface PinStatus {
+  required: boolean;
+  hasPin: boolean;
+  verified: boolean;
+}
+
 interface AuthContextType {
   user: AuthUser | null;
   session: Session | null;
-  login: (email: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string) => Promise<{ success: boolean; error?: string; hasPin?: boolean }>;
   logout: () => Promise<void>;
   isLoading: boolean;
+  pinStatus: PinStatus;
+  setPinVerified: () => void;
+  createPin: (pin: string) => Promise<{ success: boolean; error?: string }>;
+  verifyPin: (pin: string) => Promise<{ success: boolean; error?: string }>;
+  pendingEmail: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const REMEMBER_DEVICE_KEY = 'gestor_pin_remember';
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -29,6 +42,62 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<AuthUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  const [pinStatus, setPinStatus] = useState<PinStatus>({
+    required: false,
+    hasPin: false,
+    verified: false
+  });
+
+  // Check if device is remembered
+  const isDeviceRemembered = useCallback((email: string) => {
+    try {
+      const remembered = localStorage.getItem(REMEMBER_DEVICE_KEY);
+      if (remembered) {
+        const data = JSON.parse(remembered);
+        return data.email === email && data.remembered === true;
+      }
+    } catch {
+      return false;
+    }
+    return false;
+  }, []);
+
+  // Listen for PIN changes via Realtime
+  useEffect(() => {
+    if (!user?.email) return;
+
+    const channel = supabase
+      .channel('pin-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'authorized_users',
+          filter: `email=eq.${user.email}`
+        },
+        async (payload) => {
+          const oldPin = (payload.old as { pin?: string })?.pin;
+          const newPin = (payload.new as { pin?: string })?.pin;
+          
+          // If PIN changed and user had a PIN before, sign them out
+          if (oldPin && newPin && oldPin !== newPin) {
+            console.log('PIN changed, signing out user');
+            localStorage.removeItem(REMEMBER_DEVICE_KEY);
+            await supabase.auth.signOut();
+            setUser(null);
+            setSession(null);
+            setPinStatus({ required: false, hasPin: false, verified: false });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.email]);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -64,10 +133,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (email: string): Promise<{ success: boolean; error?: string }> => {
+  const login = async (email: string): Promise<{ success: boolean; error?: string; hasPin?: boolean }> => {
     try {
       // First, sign in anonymously to get a session
-      const { data: signInData, error: signInError } = await supabase.auth.signInAnonymously();
+      const { error: signInError } = await supabase.auth.signInAnonymously();
       
       if (signInError) {
         console.error('Anonymous sign in error:', signInError);
@@ -81,43 +150,135 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (error) {
         console.error('Edge function error:', error);
-        // Sign out since authorization failed
         await supabase.auth.signOut();
         return { success: false, error: 'Error al verificar el correo' };
       }
 
       if (data.error) {
-        // Sign out since authorization failed
         await supabase.auth.signOut();
         return { success: false, error: data.error };
       }
 
-      // Refresh the session to get updated app_metadata
-      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      // Check if device is remembered
+      const deviceRemembered = isDeviceRemembered(email.toLowerCase().trim());
       
-      if (refreshError) {
-        console.error('Session refresh error:', refreshError);
-        return { success: false, error: 'Error al actualizar la sesión' };
+      // Set PIN status based on response
+      const hasPin = !!data.hasPin;
+      const pinVerified = deviceRemembered;
+      
+      setPinStatus({
+        required: true,
+        hasPin: hasPin,
+        verified: pinVerified
+      });
+      
+      setPendingEmail(email.toLowerCase().trim());
+
+      // If device is remembered and user has PIN, complete login
+      if (deviceRemembered && hasPin) {
+        // Refresh the session to get updated app_metadata
+        await supabase.auth.refreshSession();
+        setUser({ email: data.email, name: data.name });
+        return { success: true, hasPin: true };
       }
 
-      // Set user from the response
-      setUser({ email: data.email, name: data.name });
+      // If no PIN or device not remembered, need to handle PIN
+      if (!hasPin || !deviceRemembered) {
+        // For users without PIN (needs to create) or needs verification
+        // Refresh session first
+        await supabase.auth.refreshSession();
+        setUser({ email: data.email, name: data.name });
+        return { success: true, hasPin: hasPin };
+      }
       
-      return { success: true };
+      return { success: true, hasPin: hasPin };
     } catch (err) {
       console.error('Login error:', err);
       return { success: false, error: 'Error de conexión' };
     }
   };
 
+  const createPin = async (pin: string): Promise<{ success: boolean; error?: string }> => {
+    if (!pendingEmail && !user?.email) {
+      return { success: false, error: 'No hay usuario pendiente' };
+    }
+
+    const email = pendingEmail || user?.email;
+
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-pin', {
+        body: { email, pin, action: 'create' }
+      });
+
+      if (error || data.error) {
+        return { success: false, error: data?.error || 'Error al crear PIN' };
+      }
+
+      setPinStatus(prev => ({ ...prev, hasPin: true, verified: true }));
+      return { success: true };
+    } catch (err) {
+      console.error('Create PIN error:', err);
+      return { success: false, error: 'Error de conexión' };
+    }
+  };
+
+  const verifyPin = async (pin: string): Promise<{ success: boolean; error?: string }> => {
+    if (!pendingEmail && !user?.email) {
+      return { success: false, error: 'No hay usuario pendiente' };
+    }
+
+    const email = pendingEmail || user?.email;
+
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-pin', {
+        body: { email, pin, action: 'verify' }
+      });
+
+      if (error || data.error) {
+        return { success: false, error: data?.error || 'PIN incorrecto' };
+      }
+
+      setPinStatus(prev => ({ ...prev, verified: true }));
+      return { success: true };
+    } catch (err) {
+      console.error('Verify PIN error:', err);
+      return { success: false, error: 'Error de conexión' };
+    }
+  };
+
+  const setPinVerified = () => {
+    setPinStatus(prev => ({ ...prev, verified: true }));
+  };
+
+  const rememberDevice = (email: string) => {
+    localStorage.setItem(REMEMBER_DEVICE_KEY, JSON.stringify({ email, remembered: true }));
+  };
+
   const logout = async () => {
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
+    setPinStatus({ required: false, hasPin: false, verified: false });
+    setPendingEmail(null);
+  };
+
+  // Expose rememberDevice function through context value customization
+  const contextValue: AuthContextType & { rememberDevice: (email: string) => void } = {
+    user,
+    session,
+    login,
+    logout,
+    isLoading,
+    pinStatus,
+    setPinVerified,
+    createPin,
+    verifyPin,
+    pendingEmail,
+    rememberDevice
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, login, logout, isLoading }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
