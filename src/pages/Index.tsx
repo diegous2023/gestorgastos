@@ -11,6 +11,7 @@ import CategoryView from '@/components/CategoryView';
 import SpendingAnalysis from '@/components/SpendingAnalysis';
 import SpecialNotificationModal from '@/components/SpecialNotificationModal';
 import PersonalizedNotificationModal from '@/components/PersonalizedNotificationModal';
+import NewYearCountdown from '@/components/NewYearCountdown';
 
 const IndexContent: React.FC<{ activeTab: string; onTabChange: (tab: string) => void }> = ({ activeTab, onTabChange }) => {
   const { isLoading } = useExpenses();
@@ -50,6 +51,7 @@ const IndexContent: React.FC<{ activeTab: string; onTabChange: (tab: string) => 
       
       <SpecialNotificationModal />
       <PersonalizedNotificationModal />
+      <NewYearCountdown />
     </div>
   );
 };
