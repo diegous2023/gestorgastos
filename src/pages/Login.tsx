@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import logo from '@/assets/logo.jpg';
 import { toast } from '@/hooks/use-toast';
+import PinModal from '@/components/PinModal';
 
 const financialQuotes = [
   "El dinero es un excelente sirviente, pero un pésimo amo.",
@@ -21,19 +22,33 @@ const financialQuotes = [
   "Tu relación con el dinero refleja tu relación contigo mismo.",
 ];
 
+const REMEMBER_DEVICE_KEY = 'gestor_pin_remember';
+
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [currentQuote, setCurrentQuote] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login, user } = useAuth();
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinMode, setPinMode] = useState<'create' | 'verify'>('create');
+  const [isPinLoading, setIsPinLoading] = useState(false);
+  const { login, user, pinStatus, createPin, verifyPin } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) {
+    // Only redirect if user is logged in AND PIN is verified
+    if (user && pinStatus.verified) {
       navigate('/');
     }
-  }, [user, navigate]);
+  }, [user, pinStatus.verified, navigate]);
+
+  // Show PIN modal when needed
+  useEffect(() => {
+    if (user && pinStatus.required && !pinStatus.verified) {
+      setPinMode(pinStatus.hasPin ? 'verify' : 'create');
+      setShowPinModal(true);
+    }
+  }, [user, pinStatus]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -65,6 +80,37 @@ const Login: React.FC = () => {
     if (!result.success) {
       toast({
         title: "Acceso Denegado",
+        description: result.error,
+        variant: "destructive",
+      });
+    }
+    // PIN modal will show automatically via useEffect
+  };
+
+  const handlePinSubmit = async (pin: string, rememberDevice: boolean) => {
+    setIsPinLoading(true);
+    
+    let result;
+    if (pinMode === 'create') {
+      result = await createPin(pin);
+    } else {
+      result = await verifyPin(pin);
+    }
+
+    setIsPinLoading(false);
+
+    if (result.success) {
+      if (rememberDevice && user?.email) {
+        localStorage.setItem(REMEMBER_DEVICE_KEY, JSON.stringify({ 
+          email: user.email, 
+          remembered: true 
+        }));
+      }
+      setShowPinModal(false);
+      navigate('/');
+    } else {
+      toast({
+        title: "Error",
         description: result.error,
         variant: "destructive",
       });
@@ -142,6 +188,14 @@ const Login: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/* PIN Modal */}
+      <PinModal
+        isOpen={showPinModal}
+        mode={pinMode}
+        onSubmit={handlePinSubmit}
+        isLoading={isPinLoading}
+      />
     </div>
   );
 };

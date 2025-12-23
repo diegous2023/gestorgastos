@@ -24,6 +24,7 @@ interface AuthorizedUser {
   email: string;
   name: string;
   status: string;
+  pin: string | null;
   created_at: string;
 }
 
@@ -106,6 +107,8 @@ const Admin: React.FC = () => {
   // Dialog state
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; user: AuthorizedUser | null }>({ open: false, user: null });
   const [suspendDialog, setSuspendDialog] = useState<{ open: boolean; user: AuthorizedUser | null; action: 'suspend' | 'reactivate' }>({ open: false, user: null, action: 'suspend' });
+  const [editPinDialog, setEditPinDialog] = useState<{ open: boolean; user: AuthorizedUser | null }>({ open: false, user: null });
+  const [newPin, setNewPin] = useState('');
 
   // Helper function for admin operations
   const adminOperation = async (operation: string, data?: Record<string, unknown>) => {
@@ -293,6 +296,25 @@ const Admin: React.FC = () => {
       });
     } catch (error) {
       toast({ title: "Error", description: "No se pudo actualizar el estado", variant: "destructive" });
+    }
+  };
+
+  const handleUpdatePin = async () => {
+    if (!editPinDialog.user) return;
+    
+    if (!newPin || newPin.length !== 4 || !/^\d{4}$/.test(newPin)) {
+      toast({ title: "Error", description: "El PIN debe ser de 4 dígitos numéricos", variant: "destructive" });
+      return;
+    }
+    
+    try {
+      await adminOperation('update_user_pin', { id: editPinDialog.user.id, pin: newPin });
+      setEditPinDialog({ open: false, user: null });
+      setNewPin('');
+      fetchUsers();
+      toast({ title: "Éxito", description: "PIN actualizado - el usuario será desconectado automáticamente" });
+    } catch (error) {
+      toast({ title: "Error", description: "No se pudo actualizar el PIN", variant: "destructive" });
     }
   };
 
@@ -607,11 +629,11 @@ const Admin: React.FC = () => {
                 {users.map((user) => (
                   <div 
                     key={user.id} 
-                    className={`flex items-center justify-between p-4 rounded-lg border ${
+                    className={`flex items-start justify-between p-4 rounded-lg border ${
                       user.status === 'suspended' ? 'bg-destructive/5 border-destructive/30' : 'bg-secondary/50 border-border'
                     }`}
                   >
-                    <div>
+                    <div className="flex-1">
                       <p className="font-medium">{user.name}</p>
                       <p className="text-sm text-muted-foreground">{user.email}</p>
                       <p className="text-xs text-muted-foreground/70 mt-0.5">
@@ -621,31 +643,55 @@ const Admin: React.FC = () => {
                         <span className="text-xs text-destructive font-medium">SUSPENDIDO</span>
                       )}
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setSuspendDialog({ 
-                          open: true, 
-                          user, 
-                          action: user.status === 'active' ? 'suspend' : 'reactivate' 
-                        })}
-                        title={user.status === 'active' ? 'Suspender' : 'Reactivar'}
-                      >
-                        {user.status === 'active' ? (
-                          <Pause className="w-4 h-4" />
-                        ) : (
-                          <Play className="w-4 h-4" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        onClick={() => setDeleteDialog({ open: true, user })}
-                        title="Eliminar"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                    <div className="flex items-center gap-4">
+                      {/* PIN Column */}
+                      <div className="flex items-center gap-2 min-w-[100px]">
+                        <div className="text-center">
+                          <p className="text-xs text-muted-foreground mb-0.5">PIN</p>
+                          <p className="font-mono font-bold text-sm">
+                            {user.pin || '----'}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => {
+                            setEditPinDialog({ open: true, user });
+                            setNewPin(user.pin || '');
+                          }}
+                          title="Editar PIN"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                      {/* Action buttons */}
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setSuspendDialog({ 
+                            open: true, 
+                            user, 
+                            action: user.status === 'active' ? 'suspend' : 'reactivate' 
+                          })}
+                          title={user.status === 'active' ? 'Suspender' : 'Reactivar'}
+                        >
+                          {user.status === 'active' ? (
+                            <Pause className="w-4 h-4" />
+                          ) : (
+                            <Play className="w-4 h-4" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          onClick={() => setDeleteDialog({ open: true, user })}
+                          title="Eliminar"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1077,6 +1123,38 @@ const Admin: React.FC = () => {
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction onClick={handleToggleStatus}>
                 {suspendDialog.action === 'suspend' ? 'Suspender' : 'Reactivar'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Edit PIN dialog */}
+        <AlertDialog open={editPinDialog.open} onOpenChange={(open) => { setEditPinDialog({ open, user: null }); setNewPin(''); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Editar PIN de {editPinDialog.user?.name}</AlertDialogTitle>
+              <AlertDialogDescription>
+                Introduce el nuevo PIN de 4 dígitos. El usuario será desconectado automáticamente.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="py-4">
+              <Input
+                type="text"
+                inputMode="numeric"
+                maxLength={4}
+                placeholder="0000"
+                value={newPin}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                  setNewPin(val);
+                }}
+                className="text-center text-2xl font-mono tracking-widest"
+              />
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleUpdatePin} className="bg-gradient-to-r from-primary to-accent">
+                Guardar PIN
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

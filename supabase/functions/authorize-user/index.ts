@@ -29,7 +29,7 @@ serve(async (req) => {
     // Check if email is authorized
     const { data: authorizedUser, error: authError } = await supabaseAdmin
       .from('authorized_users')
-      .select('email, name, status')
+      .select('email, name, status, pin')
       .eq('email', email.toLowerCase().trim())
       .maybeSingle()
 
@@ -100,7 +100,8 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         email: authorizedUser.email, 
-        name: authorizedUser.name 
+        name: authorizedUser.name,
+        hasPin: !!authorizedUser.pin
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

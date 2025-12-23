@@ -67,6 +67,13 @@ serve(async (req) => {
           .eq('id', data.id);
         break;
 
+      case 'update_user_pin':
+        result = await supabase
+          .from('authorized_users')
+          .update({ pin: data.pin })
+          .eq('id', data.id);
+        break;
+
       // ===== NOTIFICATIONS OPERATIONS =====
       case 'get_notifications':
         result = await supabase
