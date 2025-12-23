@@ -41,10 +41,10 @@ const NewYearCountdown = () => {
     <div className="fixed left-3 bottom-20 z-40">
       <div className="bg-background/90 backdrop-blur-sm border border-border/50 rounded-xl px-3 py-2 shadow-lg relative">
         {/* Christmas Hat */}
-        <div className="absolute -top-4 -left-1 text-lg animate-hat-wiggle">
-          🎅
+        <div className="absolute -top-5 -left-2 text-xl animate-hat-bounce origin-bottom">
+          🎄
         </div>
-        <div className="text-center pl-2">
+        <div className="text-center pl-3">
           <div className="text-sm font-semibold text-foreground">
             2026 🍾
           </div>
@@ -58,12 +58,25 @@ const NewYearCountdown = () => {
         </div>
       </div>
       <style>{`
-        @keyframes hat-wiggle {
-          0%, 100% { transform: rotate(-3deg); }
-          50% { transform: rotate(3deg); }
+        @keyframes hat-bounce {
+          0%, 100% { 
+            transform: translateY(0) rotate(0deg); 
+          }
+          15% { 
+            transform: translateY(-12px) rotate(-5deg); 
+          }
+          30% { 
+            transform: translateY(0) rotate(3deg); 
+          }
+          45% { 
+            transform: translateY(-6px) rotate(-2deg); 
+          }
+          60% { 
+            transform: translateY(0) rotate(0deg); 
+          }
         }
-        .animate-hat-wiggle {
-          animation: hat-wiggle 2s ease-in-out infinite;
+        .animate-hat-bounce {
+          animation: hat-bounce 3s ease-in-out infinite;
         }
       `}</style>
     </div>
