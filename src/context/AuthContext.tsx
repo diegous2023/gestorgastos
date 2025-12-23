@@ -63,7 +63,47 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return false;
   }, []);
 
-  // Listen for user changes via Realtime (PIN changes, status changes, etc.)
+  // Polling to check for forced logouts (backup for Realtime + works in background)
+  useEffect(() => {
+    if (!user?.email) return;
+
+    console.log('Setting up session validation polling for:', user.email);
+    
+    const checkInterval = setInterval(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('authorized_users')
+          .select('updated_at')
+          .eq('email', user.email)
+          .single();
+        
+        if (error || !data) return;
+        
+        const lastUpdatedAt = localStorage.getItem(`user_updated_at_${user.email}`);
+        const currentUpdatedAt = data.updated_at;
+        
+        // If updated_at changed, force logout
+        if (lastUpdatedAt && lastUpdatedAt !== currentUpdatedAt) {
+          console.log('Session invalidated via polling - user data changed, forcing logout');
+          clearInterval(checkInterval);
+          localStorage.removeItem(REMEMBER_DEVICE_KEY);
+          localStorage.removeItem(`user_updated_at_${user.email}`);
+          await supabase.auth.signOut();
+          setUser(null);
+          setSession(null);
+          setPinStatus({ required: false, hasPin: false, verified: false });
+        }
+      } catch (error) {
+        console.error('Error checking session validity:', error);
+      }
+    }, 5000); // Check every 5 seconds
+
+    return () => {
+      clearInterval(checkInterval);
+    };
+  }, [user?.email]);
+
+  // Listen for user changes via Realtime (immediate updates when online)
   useEffect(() => {
     if (!user?.email) return;
 
@@ -85,13 +125,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const oldData = payload.old as { pin?: string; updated_at?: string };
           const newData = payload.new as { pin?: string; updated_at?: string };
           
+          // Update stored updated_at
+          if (newData.updated_at) {
+            localStorage.setItem(`user_updated_at_${user.email}`, newData.updated_at);
+          }
+          
           // Sign out if PIN changed or if admin triggered a session reset
           const pinChanged = oldData.pin !== newData.pin;
           const forceLogout = oldData.updated_at !== newData.updated_at;
           
           if (pinChanged || forceLogout) {
-            console.log('Session invalidated, signing out user. PIN changed:', pinChanged, 'Force logout:', forceLogout);
+            console.log('Session invalidated via Realtime, signing out user. PIN changed:', pinChanged, 'Force logout:', forceLogout);
             localStorage.removeItem(REMEMBER_DEVICE_KEY);
+            localStorage.removeItem(`user_updated_at_${user.email}`);
             await supabase.auth.signOut();
             setUser(null);
             setSession(null);
