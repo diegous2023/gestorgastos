@@ -63,12 +63,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return false;
   }, []);
 
-  // Listen for PIN changes via Realtime
+  // Listen for user changes via Realtime (PIN changes, status changes, etc.)
   useEffect(() => {
     if (!user?.email) return;
 
+    console.log('Setting up Realtime listener for:', user.email);
+
     const channel = supabase
-      .channel('pin-changes')
+      .channel('user-changes')
       .on(
         'postgres_changes',
         {
@@ -78,12 +80,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           filter: `email=eq.${user.email}`
         },
         async (payload) => {
-          const oldPin = (payload.old as { pin?: string })?.pin;
-          const newPin = (payload.new as { pin?: string })?.pin;
+          console.log('Realtime update received:', payload);
           
-          // If PIN changed and user had a PIN before, sign them out
-          if (oldPin && newPin && oldPin !== newPin) {
-            console.log('PIN changed, signing out user');
+          const oldData = payload.old as { pin?: string; updated_at?: string };
+          const newData = payload.new as { pin?: string; updated_at?: string };
+          
+          // Sign out if PIN changed or if admin triggered a session reset
+          const pinChanged = oldData.pin !== newData.pin;
+          const forceLogout = oldData.updated_at !== newData.updated_at;
+          
+          if (pinChanged || forceLogout) {
+            console.log('Session invalidated, signing out user. PIN changed:', pinChanged, 'Force logout:', forceLogout);
             localStorage.removeItem(REMEMBER_DEVICE_KEY);
             await supabase.auth.signOut();
             setUser(null);
@@ -92,7 +99,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Realtime subscription status:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
