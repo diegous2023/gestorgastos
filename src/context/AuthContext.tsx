@@ -108,6 +108,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, [user?.email]);
 
+  // Validate session on load (important for PWA)
+  const validateSession = useCallback(async (email: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('authorized_users')
+        .select('updated_at')
+        .eq('email', email)
+        .single();
+      
+      if (error || !data) return;
+      
+      const lastUpdatedAt = localStorage.getItem(`user_updated_at_${email}`);
+      const currentUpdatedAt = data.updated_at;
+      
+      // If updated_at changed, force logout
+      if (lastUpdatedAt && lastUpdatedAt !== currentUpdatedAt) {
+        console.log('Session invalidated - user data changed, forcing logout');
+        localStorage.removeItem(REMEMBER_DEVICE_KEY);
+        localStorage.removeItem(`user_updated_at_${email}`);
+        await supabase.auth.signOut();
+        setUser(null);
+        setSession(null);
+        setPinStatus({ required: false, hasPin: false, verified: false });
+      } else {
+        // Store current updated_at
+        localStorage.setItem(`user_updated_at_${email}`, currentUpdatedAt);
+      }
+    } catch (error) {
+      console.error('Error validating session:', error);
+    }
+  }, []);
+
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -116,10 +148,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         // Extract user info from app_metadata if available
         if (session?.user?.app_metadata?.authorized_email) {
+          const userEmail = session.user.app_metadata.authorized_email;
           setUser({
-            email: session.user.app_metadata.authorized_email,
+            email: userEmail,
             name: session.user.app_metadata.authorized_name || '',
           });
+          
+          // Validate session for PWA (check if user data changed)
+          validateSession(userEmail);
         } else {
           setUser(null);
         }
@@ -127,20 +163,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       
       if (session?.user?.app_metadata?.authorized_email) {
+        const userEmail = session.user.app_metadata.authorized_email;
         setUser({
-          email: session.user.app_metadata.authorized_email,
+          email: userEmail,
           name: session.user.app_metadata.authorized_name || '',
         });
+        
+        // Validate session for PWA
+        await validateSession(userEmail);
       }
       setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [validateSession]);
 
   const login = async (email: string): Promise<{ success: boolean; error?: string; hasPin?: boolean }> => {
     try {
@@ -182,6 +222,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
       
       setPendingEmail(email.toLowerCase().trim());
+
+      // Store the user's updated_at for session validation
+      const { data: userData } = await supabase
+        .from('authorized_users')
+        .select('updated_at')
+        .eq('email', email.toLowerCase().trim())
+        .single();
+      
+      if (userData) {
+        localStorage.setItem(`user_updated_at_${email.toLowerCase().trim()}`, userData.updated_at);
+      }
 
       // If device is remembered and user has PIN, complete login
       if (deviceRemembered && hasPin) {
