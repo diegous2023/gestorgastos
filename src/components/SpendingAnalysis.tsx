@@ -1,13 +1,14 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { useExpenses } from '@/context/ExpenseContext';
 import { CATEGORIES, CategoryId } from '@/types/expense';
+import CategoryHistoryModal from './CategoryHistoryModal';
 
 const SpendingAnalysis: React.FC = () => {
   const { expenses, getTotalsByCategory, customCategories } = useExpenses();
-
-  // Combine default categories with custom categories
+  const [selectedCategory, setSelectedCategory] = useState<CategoryId | null>(null);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
   const allCategories = useMemo(() => [...CATEGORIES, ...customCategories], [customCategories]);
 
   const chartData = useMemo(() => {
@@ -51,6 +52,11 @@ const SpendingAnalysis: React.FC = () => {
         {`${(percent * 100).toFixed(0)}%`}
       </text>
     );
+  };
+
+  const handleCategoryClick = (categoryId: CategoryId) => {
+    setSelectedCategory(categoryId);
+    setShowHistoryModal(true);
   };
 
   if (chartData.length === 0) {
@@ -131,7 +137,12 @@ const SpendingAnalysis: React.FC = () => {
             const percentEUR = totalSpentEUR > 0 ? (cat.eur / totalSpentEUR) * 100 : 0;
             
             return (
-              <div key={cat.id} className="flex items-center gap-3">
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => handleCategoryClick(cat.id)}
+                className="w-full flex items-center gap-3 p-2 -m-2 rounded-lg hover:bg-secondary/50 transition-colors"
+              >
                 <div 
                   className="w-8 h-8 rounded-lg flex items-center justify-center text-lg font-bold"
                   style={{ backgroundColor: `${cat.color}20` }}
@@ -160,7 +171,7 @@ const SpendingAnalysis: React.FC = () => {
                     />
                   </div>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -171,9 +182,11 @@ const SpendingAnalysis: React.FC = () => {
         <h4 className="text-sm font-medium text-muted-foreground mb-3">Todas las categorías</h4>
         <div className="flex flex-wrap gap-2">
           {chartData.map(cat => (
-            <div 
+            <button
               key={cat.id}
-              className="flex items-center gap-2 bg-secondary/50 px-3 py-1.5 rounded-full text-sm"
+              type="button"
+              onClick={() => handleCategoryClick(cat.id)}
+              className="flex items-center gap-2 bg-secondary/50 px-3 py-1.5 rounded-full text-sm hover:bg-secondary transition-colors"
             >
               <div 
                 className="w-3 h-3 rounded-full"
@@ -181,10 +194,17 @@ const SpendingAnalysis: React.FC = () => {
               />
               <span>{cat.icon}</span>
               <span>{cat.name}</span>
-            </div>
+            </button>
           ))}
         </div>
       </div>
+
+      {/* Category History Modal */}
+      <CategoryHistoryModal
+        categoryId={selectedCategory}
+        isOpen={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+      />
     </div>
   );
 };

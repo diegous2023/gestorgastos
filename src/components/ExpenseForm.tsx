@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CalendarIcon, Heart, Trash2 } from 'lucide-react';
@@ -36,6 +36,8 @@ const ExpenseForm: React.FC = () => {
   const [date, setDate] = useState<Date>(new Date());
   const [note, setNote] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const descriptionInputRef = useRef<HTMLInputElement>(null);
   
   // Limit alert state
   const [showLimitAlert, setShowLimitAlert] = useState(false);
@@ -48,6 +50,30 @@ const ExpenseForm: React.FC = () => {
   const [dismissedLimits, setDismissedLimits] = useState<Set<CategoryId>>(new Set());
 
   const allCategories = [...CATEGORIES, ...customCategories];
+
+  // Get unique descriptions from previous expenses for autocomplete
+  const suggestionDescriptions = useMemo(() => {
+    const uniqueDescriptions = [...new Set(expenses.map(exp => exp.description))];
+    if (!description.trim()) return [];
+    
+    const filtered = uniqueDescriptions.filter(desc => 
+      desc.toLowerCase().includes(description.toLowerCase()) && 
+      desc.toLowerCase() !== description.toLowerCase()
+    );
+    
+    return filtered.slice(0, 5);
+  }, [expenses, description]);
+
+  // Handle click outside to close suggestions
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (descriptionInputRef.current && !descriptionInputRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const currencies: { value: Currency; label: string }[] = [
     { value: 'USD', label: 'USD' },
@@ -187,12 +213,35 @@ const ExpenseForm: React.FC = () => {
         <h2 className="font-display text-lg font-semibold mb-3">Registrar Gasto</h2>
         
         <form onSubmit={handleSubmit} className="space-y-3">
-          <Input
-            placeholder="Descripción"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="bg-secondary/50 border-border"
-          />
+          <div className="relative" ref={descriptionInputRef}>
+            <Input
+              placeholder="Descripción"
+              value={description}
+              onChange={(e) => {
+                setDescription(e.target.value);
+                setShowSuggestions(true);
+              }}
+              onFocus={() => setShowSuggestions(true)}
+              className="bg-secondary/50 border-border"
+            />
+            {showSuggestions && suggestionDescriptions.length > 0 && (
+              <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-lg overflow-hidden">
+                {suggestionDescriptions.map((suggestion, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => {
+                      setDescription(suggestion);
+                      setShowSuggestions(false);
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-secondary/50 transition-colors border-b border-border/50 last:border-0"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div>
             <p className="text-sm font-medium text-muted-foreground mb-2">Categoría</p>
