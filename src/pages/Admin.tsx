@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
-import { Trash2, Pause, Play, Bell, Users, Lock, Sparkles, UserCircle, LogOut, Pencil, X } from 'lucide-react';
+import { Trash2, Pause, Play, Bell, Users, Lock, Sparkles, UserCircle, LogOut, Pencil, X, Link, AlertTriangle } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,6 +49,9 @@ interface SpecialNotification {
   dismiss_button: number;
   button_count: number;
   is_active: boolean;
+  is_fixed_window: boolean;
+  button1_link: string | null;
+  button2_link: string | null;
   created_at: string;
 }
 
@@ -93,6 +96,9 @@ const Admin: React.FC = () => {
   const [newSpecialButton2, setNewSpecialButton2] = useState('Confirmo que ya revisé las actualizaciones');
   const [newSpecialDismissButton, setNewSpecialDismissButton] = useState(2);
   const [newSpecialButtonCount, setNewSpecialButtonCount] = useState(2);
+  const [newSpecialIsFixedWindow, setNewSpecialIsFixedWindow] = useState(false);
+  const [newSpecialButton1Link, setNewSpecialButton1Link] = useState('');
+  const [newSpecialButton2Link, setNewSpecialButton2Link] = useState('');
   const [editingSpecial, setEditingSpecial] = useState<SpecialNotification | null>(null);
 
   // Personalized notifications state
@@ -363,7 +369,10 @@ const Admin: React.FC = () => {
         button1_text: newSpecialButton1.trim(),
         button2_text: newSpecialButtonCount === 2 ? newSpecialButton2.trim() : '',
         dismiss_button: newSpecialButtonCount === 1 ? 1 : newSpecialDismissButton,
-        button_count: newSpecialButtonCount
+        button_count: newSpecialButtonCount,
+        is_fixed_window: newSpecialIsFixedWindow,
+        button1_link: newSpecialButton1Link.trim() || null,
+        button2_link: newSpecialButtonCount === 2 ? (newSpecialButton2Link.trim() || null) : null
       });
       resetSpecialForm();
       fetchSpecialNotifications();
@@ -380,6 +389,9 @@ const Admin: React.FC = () => {
     setNewSpecialButton2('Confirmo que ya revisé las actualizaciones');
     setNewSpecialDismissButton(2);
     setNewSpecialButtonCount(2);
+    setNewSpecialIsFixedWindow(false);
+    setNewSpecialButton1Link('');
+    setNewSpecialButton2Link('');
     setEditingSpecial(null);
   };
 
@@ -391,6 +403,9 @@ const Admin: React.FC = () => {
     setNewSpecialButton2(notification.button2_text);
     setNewSpecialDismissButton(notification.dismiss_button);
     setNewSpecialButtonCount(notification.button_count);
+    setNewSpecialIsFixedWindow(notification.is_fixed_window);
+    setNewSpecialButton1Link(notification.button1_link || '');
+    setNewSpecialButton2Link(notification.button2_link || '');
   };
 
   const handleUpdateSpecialNotification = async (e: React.FormEvent) => {
@@ -408,7 +423,10 @@ const Admin: React.FC = () => {
         button1_text: newSpecialButton1.trim(),
         button2_text: newSpecialButtonCount === 2 ? newSpecialButton2.trim() : '',
         dismiss_button: newSpecialButtonCount === 1 ? 1 : newSpecialDismissButton,
-        button_count: newSpecialButtonCount
+        button_count: newSpecialButtonCount,
+        is_fixed_window: newSpecialIsFixedWindow,
+        button1_link: newSpecialButton1Link.trim() || null,
+        button2_link: newSpecialButtonCount === 2 ? (newSpecialButton2Link.trim() || null) : null
       });
       resetSpecialForm();
       fetchSpecialNotifications();
@@ -791,6 +809,25 @@ const Admin: React.FC = () => {
                   rows={4}
                 />
                 
+                {/* Fixed Window Toggle */}
+                <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <AlertTriangle className="w-5 h-5 text-destructive" />
+                      <div>
+                        <Label className="text-sm font-medium">VENTANA FIJA (Modo Mantenimiento)</Label>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Los usuarios no podrán usar la app. Solo verán esta notificación.
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={newSpecialIsFixedWindow}
+                      onCheckedChange={setNewSpecialIsFixedWindow}
+                    />
+                  </div>
+                </div>
+
                 {/* Button count selector */}
                 <div className="p-4 bg-secondary/50 rounded-lg">
                   <Label className="text-sm font-medium mb-3 block">¿Cuántos botones tendrá la notificación?</Label>
@@ -806,7 +843,7 @@ const Admin: React.FC = () => {
                         }}
                         className="accent-primary"
                       />
-                      <span>1 botón (siempre oculta)</span>
+                      <span>1 botón {!newSpecialIsFixedWindow && '(siempre oculta)'}</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input 
@@ -822,29 +859,49 @@ const Admin: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm text-muted-foreground mb-2 block">Texto del botón 1</Label>
+                  <div className="space-y-2">
+                    <Label className="text-sm text-muted-foreground block">Texto del botón 1</Label>
                     <Input
                       type="text"
                       placeholder="Aceptar"
                       value={newSpecialButton1}
                       onChange={(e) => setNewSpecialButton1(e.target.value)}
                     />
+                    <div className="flex items-center gap-2">
+                      <Link className="w-4 h-4 text-muted-foreground" />
+                      <Input
+                        type="url"
+                        placeholder="Enlace del botón 1 (opcional)"
+                        value={newSpecialButton1Link}
+                        onChange={(e) => setNewSpecialButton1Link(e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
                   </div>
                   {newSpecialButtonCount === 2 && (
-                    <div>
-                      <Label className="text-sm text-muted-foreground mb-2 block">Texto del botón 2</Label>
+                    <div className="space-y-2">
+                      <Label className="text-sm text-muted-foreground block">Texto del botón 2</Label>
                       <Input
                         type="text"
                         placeholder="Confirmar"
                         value={newSpecialButton2}
                         onChange={(e) => setNewSpecialButton2(e.target.value)}
                       />
+                      <div className="flex items-center gap-2">
+                        <Link className="w-4 h-4 text-muted-foreground" />
+                        <Input
+                          type="url"
+                          placeholder="Enlace del botón 2 (opcional)"
+                          value={newSpecialButton2Link}
+                          onChange={(e) => setNewSpecialButton2Link(e.target.value)}
+                          className="text-sm"
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
 
-                {newSpecialButtonCount === 2 && (
+                {newSpecialButtonCount === 2 && !newSpecialIsFixedWindow && (
                   <div className="p-4 bg-secondary/50 rounded-lg">
                     <Label className="text-sm font-medium mb-3 block">¿Qué botón oculta la notificación permanentemente?</Label>
                     <div className="flex gap-4">
@@ -886,14 +943,26 @@ const Admin: React.FC = () => {
                 {specialNotifications.map((notification) => (
                   <div 
                     key={notification.id} 
-                    className={`p-4 rounded-lg border ${notification.is_active ? 'bg-primary/5 border-primary/30' : 'bg-secondary/50 border-border'}`}
+                    className={`p-4 rounded-lg border ${
+                      notification.is_fixed_window && notification.is_active 
+                        ? 'bg-destructive/10 border-destructive/50' 
+                        : notification.is_active 
+                          ? 'bg-primary/5 border-primary/30' 
+                          : 'bg-secondary/50 border-border'
+                    }`}
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <p className="font-semibold">{notification.title}</p>
                           {notification.is_active && (
                             <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">ACTIVA</span>
+                          )}
+                          {notification.is_fixed_window && (
+                            <span className="text-xs bg-destructive/20 text-destructive px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3" />
+                              VENTANA FIJA
+                            </span>
                           )}
                           <span className="text-xs bg-secondary text-muted-foreground px-2 py-0.5 rounded-full">
                             {notification.button_count === 1 ? '1 botón' : '2 botones'}
@@ -902,10 +971,24 @@ const Admin: React.FC = () => {
                         <p className="text-sm text-muted-foreground">{notification.description}</p>
                         <div className="flex flex-wrap gap-4 mt-2 text-xs text-muted-foreground">
                           <span>Botón 1: {notification.button1_text}</span>
+                          {notification.button1_link && (
+                            <span className="flex items-center gap-1 text-primary">
+                              <Link className="w-3 h-3" />
+                              {notification.button1_link.slice(0, 30)}...
+                            </span>
+                          )}
                           {notification.button_count === 2 && (
                             <>
                               <span>Botón 2: {notification.button2_text}</span>
-                              <span>Oculta con: Botón {notification.dismiss_button}</span>
+                              {notification.button2_link && (
+                                <span className="flex items-center gap-1 text-primary">
+                                  <Link className="w-3 h-3" />
+                                  {notification.button2_link.slice(0, 30)}...
+                                </span>
+                              )}
+                              {!notification.is_fixed_window && (
+                                <span>Oculta con: Botón {notification.dismiss_button}</span>
+                              )}
                             </>
                           )}
                         </div>

@@ -113,6 +113,9 @@ serve(async (req) => {
             button2_text: data.button2_text,
             dismiss_button: data.dismiss_button,
             button_count: data.button_count,
+            is_fixed_window: data.is_fixed_window || false,
+            button1_link: data.button1_link || null,
+            button2_link: data.button2_link || null,
             is_active: true
           });
         break;
@@ -126,7 +129,10 @@ serve(async (req) => {
             button1_text: data.button1_text,
             button2_text: data.button2_text,
             dismiss_button: data.dismiss_button,
-            button_count: data.button_count
+            button_count: data.button_count,
+            is_fixed_window: data.is_fixed_window || false,
+            button1_link: data.button1_link || null,
+            button2_link: data.button2_link || null
           })
           .eq('id', data.id);
         break;

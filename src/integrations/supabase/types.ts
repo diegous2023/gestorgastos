@@ -229,35 +229,44 @@ export type Database = {
       special_notifications: {
         Row: {
           button_count: number
+          button1_link: string | null
           button1_text: string
+          button2_link: string | null
           button2_text: string
           created_at: string
           description: string
           dismiss_button: number
           id: string
           is_active: boolean
+          is_fixed_window: boolean
           title: string
         }
         Insert: {
           button_count?: number
+          button1_link?: string | null
           button1_text?: string
+          button2_link?: string | null
           button2_text?: string
           created_at?: string
           description: string
           dismiss_button?: number
           id?: string
           is_active?: boolean
+          is_fixed_window?: boolean
           title: string
         }
         Update: {
           button_count?: number
+          button1_link?: string | null
           button1_text?: string
+          button2_link?: string | null
           button2_text?: string
           created_at?: string
           description?: string
           dismiss_button?: number
           id?: string
           is_active?: boolean
+          is_fixed_window?: boolean
           title?: string
         }
         Relationships: []
